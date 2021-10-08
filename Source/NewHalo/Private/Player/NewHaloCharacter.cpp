@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Player/NewHaloCharacter.h"
+
+#include "Equipment.h"
 #include "WeaponSystem/NewHaloProjectile.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
@@ -11,8 +13,15 @@
 #include "Kismet/GameplayStatics.h"
 #include "MotionControllerComponent.h"
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::RightHandSourceId
+#include "Components/WidgetComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameUI/NewHaloHUD.h"
+#include "GameUI/PlayerOverheadStatus.h"
+#include "Interfaces/Pickable.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Player/NHPlayerController.h"
+#include "Player/NHPlayerState.h"
+#include "WeaponSystem/WeaponBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
@@ -22,8 +31,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 ANewHaloCharacter::ANewHaloCharacter()
 {
 	// Set size for collision capsule
-	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
+	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
+	SetCanBeDamaged(true);
+	
 	// set our turn rates for input
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
@@ -34,58 +45,11 @@ ANewHaloCharacter::ANewHaloCharacter()
 	FirstPersonCameraComponent->SetRelativeLocation(FVector(-39.56f, 1.75f, 64.f)); // Position the camera
 	FirstPersonCameraComponent->bUsePawnControlRotation = true;
 
-	// Create a mesh component that will be used when being viewed from a '1st person' view (when controlling this pawn)
-	Mesh1P = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CharacterMesh1P"));
-	Mesh1P->SetOnlyOwnerSee(true);
-	Mesh1P->SetupAttachment(FirstPersonCameraComponent);
-	Mesh1P->bCastDynamicShadow = false;
-	Mesh1P->CastShadow = false;
-	Mesh1P->SetRelativeRotation(FRotator(1.9f, -19.19f, 5.2f));
-	Mesh1P->SetRelativeLocation(FVector(-0.5f, -4.4f, -155.7f));
-
-	// Create a gun mesh component
-	FP_Gun = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FP_Gun"));
-	FP_Gun->SetOnlyOwnerSee(false);			// otherwise won't be visible in the multiplayer
-	FP_Gun->bCastDynamicShadow = false;
-	FP_Gun->CastShadow = false;
-	// FP_Gun->SetupAttachment(Mesh1P, TEXT("GripPoint"));
-	FP_Gun->SetupAttachment(RootComponent);
-
+	
 	FP_MuzzleLocation = CreateDefaultSubobject<USceneComponent>(TEXT("MuzzleLocation"));
-	FP_MuzzleLocation->SetupAttachment(FP_Gun);
+	FP_MuzzleLocation->SetupAttachment(RootComponent);
 	FP_MuzzleLocation->SetRelativeLocation(FVector(0.2f, 48.4f, -10.6f));
-
-	// Default offset from the character location for projectiles to spawn
-	GunOffset = FVector(100.0f, 0.0f, 10.0f);
-
-	// Note: The ProjectileClass and the skeletal mesh/anim blueprints for Mesh1P, FP_Gun, and VR_Gun 
-	// are set in the derived blueprint asset named MyCharacter to avoid direct content references in C++.
-
-	// Create VR Controllers.
-	R_MotionController = CreateDefaultSubobject<UMotionControllerComponent>(TEXT("R_MotionController"));
-	R_MotionController->MotionSource = FXRMotionControllerBase::RightHandSourceId;
-	R_MotionController->SetupAttachment(RootComponent);
-	L_MotionController = CreateDefaultSubobject<UMotionControllerComponent>(TEXT("L_MotionController"));
-	L_MotionController->SetupAttachment(RootComponent);
-
-	// Create a gun and attach it to the right-hand VR controller.
-	// Create a gun mesh component
-	VR_Gun = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("VR_Gun"));
-	VR_Gun->SetOnlyOwnerSee(false);			// otherwise won't be visible in the multiplayer
-	VR_Gun->bCastDynamicShadow = false;
-	VR_Gun->CastShadow = false;
-	VR_Gun->SetupAttachment(R_MotionController);
-	VR_Gun->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
-
-	VR_MuzzleLocation = CreateDefaultSubobject<USceneComponent>(TEXT("VR_MuzzleLocation"));
-	VR_MuzzleLocation->SetupAttachment(VR_Gun);
-	VR_MuzzleLocation->SetRelativeLocation(FVector(0.000004, 53.999992, 10.000000));
-	VR_MuzzleLocation->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));		// Counteract the rotation of the VR gun model.
-
-	// Uncomment the following line to turn motion controllers on by default:
-	//bUsingMotionControllers = true;
-
-
+	
 	/**
 	 *  3rdPerson Section
 	 */
@@ -98,60 +62,72 @@ ANewHaloCharacter::ANewHaloCharacter()
 	Mesh3P->SetRelativeRotation(FRotator(1.9f, -19.19f, 5.2f));
 	Mesh3P->SetRelativeLocation(FVector(-0.5f, -4.4f, -155.7f));
 	
-
-	/**
-	 * 
-	 */
-
+	JumpMaxCount = 2;
 	bCanSlide = true;
+	
+	/////
+	/// Set SocketNames, Can be modified in BPs
+	///
+
+	HoldSocketName = FName("HoldSocket");
+	LeftWeaponSocketName = FName("LeftWeaponSocket");
+	RightWeaponSocketName = FName("RightWeaponSocket");
+	PistolSocketName = FName("PistolSocket");
+	/////////////////
+	///
+	/// Pick
+	///
+	///
+	CurrentActionSelection = 0;
+	
 }
 
 void ANewHaloCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
+	if(GetNetMode() == ENetMode::NM_DedicatedServer)
+		GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, "Server");
+	if(GetNetMode() == NM_Client)
+		GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, "Client");
 
-	//Attach gun mesh component to Skeleton, doing it here because the skeleton is not yet created in the constructor
-	FP_Gun->AttachToComponent(Mesh1P, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true), TEXT("GripPoint"));
 
-	// Show or hide the two versions of the gun based on whether or not we're using motion controllers.
-	if (bUsingMotionControllers)
+	auto WidgetComponent = Cast<UWidgetComponent>(GetComponentByClass(UWidgetComponent::StaticClass()));
+	if(WidgetComponent)
 	{
-		VR_Gun->SetHiddenInGame(false, true);
-		Mesh1P->SetHiddenInGame(true, true);
+		OverHeadWidget = Cast<UPlayerOverheadStatus>(WidgetComponent->GetWidget());
+		if(!OverHeadWidget)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Cant Get OverHeadWidget"));
+		}
 	}
-	else
+
+	auto PS = GetPlayerState<ANHPlayerState>();
+	if(PS)
 	{
-		VR_Gun->SetHiddenInGame(true, true);
-		Mesh1P->SetHiddenInGame(false, true);
+		PS->RegisterLocalCharacter(this);
 	}
-
-
-	////
-	///
 	
-	JumpMaxCount = 2;
-
-
-	/**
-	 * 3rd Person Section
-	 */
-
-	if(HasLocalNetOwner())
+	//FreeCamera->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	OnActorBeginOverlap.AddDynamic(this, &ANewHaloCharacter::OnOverLapBegin);
+	OnActorEndOverlap.AddDynamic(this, &ANewHaloCharacter::OnOverlapEnd);
+	if(GetNetOwningPlayer() && GetWorld())
 	{
-		Mesh1P->SetHiddenInGame(false, true);
-		Mesh3P->SetHiddenInGame(true, true);
+		PC = Cast<ANHPlayerController>(GetNetOwningPlayer()->GetPlayerController(GetWorld()));
+		if(!PC)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Not PC In Character::Beginplay"))
+		}
+		else
+		{
+			PlayerHUD = PC->GetHUD<ANewHaloHUD>();
+			if(!PlayerHUD)
+			{
+				UE_LOG(LogTemp, Error, TEXT("Not HUD In Character::Beginplay"))
+			}
+		}
 	}
-	else
-	{
-		Mesh1P->SetHiddenInGame(true, true);
-		Mesh3P->SetHiddenInGame(false, true);
-	}
-}
-
-bool ANewHaloCharacter::CanJumpInternal_Implementation() const
-{
-	return Super::CanJumpInternal_Implementation();
+	
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -168,17 +144,13 @@ void ANewHaloCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 
 	// Bind fire event
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ANewHaloCharacter::OnFire);
+	PlayerInputComponent->BindAction("Fire", IE_Released, this, &ANewHaloCharacter::OnStopFire);
 
 	// Bind Chrouch event
 	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &ANewHaloCharacter::OnCrouch);
 
 	PlayerInputComponent->BindAction("Slide", IE_Pressed, this, &ANewHaloCharacter::Slide);
-
-	// Enable touchscreen input
-	EnableTouchscreenMovement(PlayerInputComponent);
-
-	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &ANewHaloCharacter::OnResetVR);
-
+	
 	// Bind movement events
 	PlayerInputComponent->BindAxis("MoveForward", this, &ANewHaloCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ANewHaloCharacter::MoveRight);
@@ -190,59 +162,70 @@ void ANewHaloCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAxis("TurnRate", this, &ANewHaloCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &ANewHaloCharacter::LookUpAtRate);
+
+///////////////////////////////
+///
+///
+	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &ANewHaloCharacter::Reload);
+	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &ANewHaloCharacter::Pick);
+	PlayerInputComponent->BindAxis("SwitchWeapon", this, &ANewHaloCharacter::SwitchWeapon);
+}
+
+void ANewHaloCharacter::UpdateWeaponsAmmoHUD(AWeaponBase* Weapon)
+{
+	if(Weapon && PlayerHUD)
+	{
+		auto SocketName = Weapon->GetAttachedSocketName();
+		if(SocketName == RightWeaponSocketName)
+		{
+			PlayerHUD->SetWeapon1Ammo(Weapon->GetAmmo());
+		}
+		else if(SocketName == LeftWeaponSocketName)
+		{
+			PlayerHUD->SetWeapon2Ammo(Weapon->GetAmmo());
+		}
+		else if(SocketName == PistolSocketName)
+		{
+			PlayerHUD->SetSmallWeaponAmmo(Weapon->GetAmmo());
+		}
+	}
+}
+
+void ANewHaloCharacter::UpdateWeaponsIconHUD(AWeaponBase* Weapon)
+{
+	if(Weapon && PlayerHUD)
+	{
+		auto SocketName = Weapon->GetAttachedSocketName();
+		if(SocketName == RightWeaponSocketName)
+		{
+			PlayerHUD->SetWeapon1Icon(Weapon->GetWeaponIcon());
+		}
+		else if(SocketName == LeftWeaponSocketName)
+		{
+			PlayerHUD->SetWeapon2Icon(Weapon->GetWeaponIcon());
+		}
+		else if(SocketName == PistolSocketName)
+		{
+			PlayerHUD->SetSmallWeaponIcon(Weapon->GetWeaponIcon());
+		}
+	}	
 }
 
 void ANewHaloCharacter::OnFire()
 {
-	// try and fire a projectile
-	if (ProjectileClass != nullptr)
+	if(CurrentWeapon)
 	{
-		UWorld* const World = GetWorld();
-		if (World != nullptr)
-		{
-			if (bUsingMotionControllers)
-			{
-				const FRotator SpawnRotation = VR_MuzzleLocation->GetComponentRotation();
-				const FVector SpawnLocation = VR_MuzzleLocation->GetComponentLocation();
-				World->SpawnActor<ANewHaloProjectile>(ProjectileClass, SpawnLocation, SpawnRotation);
-			}
-			else
-			{
-				const FRotator SpawnRotation = GetControlRotation();
-				// MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position
-				const FVector SpawnLocation = ((FP_MuzzleLocation != nullptr) ? FP_MuzzleLocation->GetComponentLocation() : GetActorLocation()) + SpawnRotation.RotateVector(GunOffset);
-
-				//Set Spawn Collision Handling Override
-				FActorSpawnParameters ActorSpawnParams;
-				ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-
-				// spawn the projectile at the muzzle
-				World->SpawnActor<ANewHaloProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
-			}
-		}
-	}
-
-	// try and play the sound if specified
-	if (FireSound != nullptr)
-	{
-		UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
-	}
-
-	// try and play a firing animation if specified
-	if (FireAnimation != nullptr)
-	{
-		// Get the animation object for the arms mesh
-		UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance();
-		if (AnimInstance != nullptr)
-		{
-			AnimInstance->Montage_Play(FireAnimation, 1.f);
-		}
+		CurrentWeapon->Fire(FP_MuzzleLocation->GetComponentLocation(), GetActorRotation());
+		CurrentWeapon->SetStopFiring(false);
+		UpdateWeaponsAmmoHUD(CurrentWeapon);
 	}
 }
 
-void ANewHaloCharacter::OnResetVR()
+void ANewHaloCharacter::OnStopFire()
 {
-	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
+	if(!CurrentWeapon) return;
+	
+	CurrentWeapon->SetStopFiring(true);
 }
 
 void ANewHaloCharacter::OnCrouch()
@@ -250,10 +233,12 @@ void ANewHaloCharacter::OnCrouch()
 	if(!bIsCrouched)
 	{
 		Crouch();
+		bIsCrouching =true;
 	}
 	else
 	{
 		UnCrouch();
+		bIsCrouching = false;
 	}
 }
 
@@ -264,6 +249,7 @@ void ANewHaloCharacter::Slide()
 		 return;
 	 }
 	bCanSlide = false;
+	bIsSliding = true;
 	auto ChM = Cast<UCharacterMovementComponent>(GetMovementComponent());
 	ChM->BrakingFrictionFactor = SlidingFriction;
 	ChM->Velocity = GetVelocity() * SlidingSpeed;
@@ -277,81 +263,19 @@ void ANewHaloCharacter::Slide()
 void ANewHaloCharacter::StopSlide()
 {
 	UnCrouch();
+	bIsSliding = false;
 	auto ChM = Cast<UCharacterMovementComponent>(GetMovementComponent());
-	GetWorldTimerManager().SetTimer(SlidingTimerHandle, this, &ANewHaloCharacter::ResetSlid, 1, false);
+	GetWorldTimerManager().SetTimer(SlidingTimerHandle, this, &ANewHaloCharacter::ResetSlide, 1, false);
 	EnableInput(GetNetOwningPlayer()->GetPlayerController(GetWorld()));
     ChM->BrakingFrictionFactor = 2;
 	ChM->CrouchedHalfHeight = 40;
 
 }
 
-void ANewHaloCharacter::ResetSlid()
+void ANewHaloCharacter::ResetSlide()
 {
 	bCanSlide = true;
 }
-
-void ANewHaloCharacter::BeginTouch(const ETouchIndex::Type FingerIndex, const FVector Location)
-{
-	if (TouchItem.bIsPressed == true)
-	{
-		return;
-	}
-	if ((FingerIndex == TouchItem.FingerIndex) && (TouchItem.bMoved == false))
-	{
-		OnFire();
-	}
-	TouchItem.bIsPressed = true;
-	TouchItem.FingerIndex = FingerIndex;
-	TouchItem.Location = Location;
-	TouchItem.bMoved = false;
-}
-
-void ANewHaloCharacter::EndTouch(const ETouchIndex::Type FingerIndex, const FVector Location)
-{
-	if (TouchItem.bIsPressed == false)
-	{
-		return;
-	}
-	TouchItem.bIsPressed = false;
-}
-
-//Commenting this section out to be consistent with FPS BP template.
-//This allows the user to turn without using the right virtual joystick
-
-//void ANewHaloCharacter::TouchUpdate(const ETouchIndex::Type FingerIndex, const FVector Location)
-//{
-//	if ((TouchItem.bIsPressed == true) && (TouchItem.FingerIndex == FingerIndex))
-//	{
-//		if (TouchItem.bIsPressed)
-//		{
-//			if (GetWorld() != nullptr)
-//			{
-//				UGameViewportClient* ViewportClient = GetWorld()->GetGameViewport();
-//				if (ViewportClient != nullptr)
-//				{
-//					FVector MoveDelta = Location - TouchItem.Location;
-//					FVector2D ScreenSize;
-//					ViewportClient->GetViewportSize(ScreenSize);
-//					FVector2D ScaledDelta = FVector2D(MoveDelta.X, MoveDelta.Y) / ScreenSize;
-//					if (FMath::Abs(ScaledDelta.X) >= 4.0 / ScreenSize.X)
-//					{
-//						TouchItem.bMoved = true;
-//						float Value = ScaledDelta.X * BaseTurnRate;
-//						AddControllerYawInput(Value);
-//					}
-//					if (FMath::Abs(ScaledDelta.Y) >= 4.0 / ScreenSize.Y)
-//					{
-//						TouchItem.bMoved = true;
-//						float Value = ScaledDelta.Y * BaseTurnRate;
-//						AddControllerPitchInput(Value);
-//					}
-//					TouchItem.Location = Location;
-//				}
-//				TouchItem.Location = Location;
-//			}
-//		}
-//	}
-//}
 
 void ANewHaloCharacter::MoveForward(float Value)
 {
@@ -383,17 +307,272 @@ void ANewHaloCharacter::LookUpAtRate(float Rate)
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
-bool ANewHaloCharacter::EnableTouchscreenMovement(class UInputComponent* PlayerInputComponent)
-{
-	if (FPlatformMisc::SupportsTouchInput() || GetDefault<UInputSettings>()->bUseMouseForTouch)
-	{
-		PlayerInputComponent->BindTouch(EInputEvent::IE_Pressed, this, &ANewHaloCharacter::BeginTouch);
-		PlayerInputComponent->BindTouch(EInputEvent::IE_Released, this, &ANewHaloCharacter::EndTouch);
 
-		//Commenting this out to be more consistent with FPS BP template.
-		//PlayerInputComponent->BindTouch(EInputEvent::IE_Repeat, this, &ANewHaloCharacter::TouchUpdate);
-		return true;
+///////////////////////////////////////////////////////////////////////////////////////////////
+///
+///
+///
+///
+///
+///
+
+
+void ANewHaloCharacter::Reload()
+{
+	if(CurrentWeapon)
+	{
+		CurrentWeapon->Reload();
+		UpdateWeaponsAmmoHUD(CurrentWeapon);
+	}
+}
+
+void ANewHaloCharacter::Pick()
+{
+	if(OverlappingActorsList.Num() == 0)
+	{
+		return;
+	}
+	if(OverlappingActorsList[CurrentActionSelection]->IsA(AWeaponBase::StaticClass()))
+	{
+		auto Weapon = Cast<AWeaponBase>(OverlappingActorsList[CurrentActionSelection]);
+		if(Weapon)
+		{
+			OverlappingActorsList.RemoveAt(CurrentActionSelection);
+			Weapon->AttachToActor(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
+			Weapon->Execute_Pick(Weapon, this, 1);
+			if(Weapon->GetWeaponType() == EWeaponType::Pistol)
+			{
+				if(Pistol)
+				{
+					Pistol->Execute_Drop(Pistol, 1);
+				}
+				Weapon->Execute_Equip(Weapon, PistolSocketName);
+				if(Pistol == CurrentWeapon)
+				{
+					CurrentWeapon = Weapon;
+					Weapon->Execute_Equip(Weapon, HoldSocketName);
+				}
+				Pistol = Weapon;
+				UpdateWeaponsAmmoHUD(Pistol);
+				UpdateWeaponsIconHUD(Pistol);
+
+			}
+			else if(!RightWeapon)
+			{
+				RightWeapon = Weapon;
+				RightWeapon->Execute_Equip(RightWeapon, RightWeaponSocketName);
+				UpdateWeaponsAmmoHUD(RightWeapon);
+				UpdateWeaponsIconHUD(RightWeapon);
+
+			}
+			else if(!LeftWeapon)
+			{
+				LeftWeapon = Weapon;
+				LeftWeapon->Execute_Equip(LeftWeapon, LeftWeaponSocketName);
+				UpdateWeaponsIconHUD(LeftWeapon);
+				UpdateWeaponsAmmoHUD(LeftWeapon);
+			}
+			else
+			{
+				if(!CurrentWeapon || CurrentWeapon == Pistol)
+				{
+					RightWeapon->Execute_Drop(RightWeapon, 1);
+					RightWeapon = Weapon;
+					RightWeapon->Execute_Equip(RightWeapon, RightWeaponSocketName);
+					UpdateWeaponsAmmoHUD(RightWeapon);
+					UpdateWeaponsIconHUD(RightWeapon);
+				}
+				else if(CurrentWeapon == RightWeapon)
+				{
+					RightWeapon->Execute_Drop(RightWeapon, 1);
+					RightWeapon = Weapon;
+					RightWeapon->Execute_Equip(RightWeapon, RightWeaponSocketName);
+					RightWeapon->Execute_Equip(RightWeapon, HoldSocketName);
+					CurrentWeapon = RightWeapon;
+					UpdateWeaponsAmmoHUD(CurrentWeapon);
+					UpdateWeaponsIconHUD(CurrentWeapon);
+				}
+				else if(CurrentWeapon == LeftWeapon)
+				{
+					LeftWeapon->Execute_Drop(LeftWeapon, 1);
+					LeftWeapon = Weapon;
+					LeftWeapon->Execute_Equip(LeftWeapon, LeftWeaponSocketName);
+					LeftWeapon->Execute_Equip(LeftWeapon, HoldSocketName);
+					CurrentWeapon = LeftWeapon;
+					UpdateWeaponsAmmoHUD(CurrentWeapon);
+					UpdateWeaponsIconHUD(CurrentWeapon);
+				}
+				
+			}
+		}
+	}
+	// else if(OverlappingActorsList[CurrentActionSelection]->Implements<IPickable::UClassType>())
+	// {
+	// 	
+	// }
+}
+
+void ANewHaloCharacter::SwitchWeapon(float WeaponIndex)
+{
+
+	int32 Idx = FMath::RoundToInt(WeaponIndex);
+	CurrentWeaponSelection += Idx;
+
+	if(CurrentWeaponSelection > 3) CurrentWeaponSelection = 0;
+	if(CurrentWeaponSelection < 0) CurrentWeaponSelection = 3;
+	switch (CurrentWeaponSelection)
+	{
+		case 0:
+			if(CurrentWeapon)
+			{
+				CurrentWeapon->Execute_Equip(CurrentWeapon, CurrentWeapon->GetAttachedSocketName());
+				CurrentWeapon = nullptr;
+				bIsHoldingAWeapon = false;
+			}
+			break;
+		case 1:
+			if(CurrentWeapon)
+			{
+				CurrentWeapon->Execute_Equip(CurrentWeapon, CurrentWeapon->GetAttachedSocketName());
+			}
+			if(!RightWeapon)
+			{
+				CurrentWeapon = nullptr;
+				bIsHoldingAWeapon = false;
+				break;
+			}
+			CurrentWeapon = RightWeapon;
+			RightWeapon->Execute_Equip(RightWeapon, HoldSocketName);
+			bIsHoldingAWeapon = true; 
+			break;
+		case 2:
+			if(CurrentWeapon)
+			{
+				CurrentWeapon->Execute_Equip(CurrentWeapon, CurrentWeapon->GetAttachedSocketName());
+			}
+			if(!LeftWeapon)
+			{
+				CurrentWeapon = nullptr;
+				bIsHoldingAWeapon = false;
+				break;
+			}
+			CurrentWeapon = LeftWeapon;
+			LeftWeapon->Execute_Equip(LeftWeapon, HoldSocketName);
+			bIsHoldingAWeapon = true; 
+			break;
+		case 3:
+			if(CurrentWeapon)
+			{
+				CurrentWeapon->Execute_Equip(CurrentWeapon, CurrentWeapon->GetAttachedSocketName());
+			}
+			if(!Pistol)
+			{
+				CurrentWeapon = nullptr;
+				bIsHoldingAWeapon = false;
+				break;
+			}
+			CurrentWeapon = Pistol;
+			Pistol->Execute_Equip(Pistol, HoldSocketName);
+			bIsHoldingAWeapon = true; 
+			break;
+		default:
+			break;
 	}
 	
-	return false;
 }
+
+void ANewHaloCharacter::UpdateHealth(float Percent)
+{
+	if(OverHeadWidget)
+	{
+		OverHeadWidget->UpdateHealth(Percent);
+	}
+}
+
+float ANewHaloCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+                                    AActor* DamageCauser)
+{
+	if(!GetNetMode() == ENetMode::NM_DedicatedServer)
+	{
+		return 0;
+	}
+	auto D = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	if(DamageAmount == 0)
+	{
+		//TODO Show Reflection Animation with reflection sound
+	}
+	else
+	{
+		auto PS = GetPlayerState<ANHPlayerState>();
+		if(PS)
+		{
+			//PS->ReduceHealth(DamageAmount);
+			// TODO Show blood with hit sound and animation
+		}
+	}
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+}
+
+
+void ANewHaloCharacter::OnOverLapBegin(AActor* This, AActor* Other)
+{
+	if(Cast<IPickable>(Other))
+	{
+		OverlappingActorsList.Add(Other);
+	}
+}
+
+void ANewHaloCharacter::OnOverlapEnd(AActor* This, AActor* Other)
+{
+	if(Cast<IPickable>(Other))
+	{
+		OverlappingActorsList.Remove(Other);
+	}
+}
+
+USkeletalMeshComponent* ANewHaloCharacter::GetMesh3P() const
+{
+	return Mesh3P;
+}
+
+bool ANewHaloCharacter::IsIsJumping() const
+{
+	return bIsJumping;
+}
+
+bool ANewHaloCharacter::IsIsDoubleJumping() const
+{
+	return bIsDoubleJumping;
+}
+
+bool ANewHaloCharacter::IsIsHoldingAWeapon() const
+{
+	return bIsHoldingAWeapon;
+}
+
+bool ANewHaloCharacter::IsIsCrouching() const
+{
+	return bIsCrouching;
+}
+
+bool ANewHaloCharacter::IsIsSliding() const
+{
+	return bIsSliding;
+}
+
+int32 ANewHaloCharacter::GetCurrentWeaponSelection() const
+{
+	return CurrentWeaponSelection;
+}
+
+
+int32 ANewHaloCharacter::GetCurrentActionSelection() const
+{
+	return CurrentActionSelection;
+}
+
+void ANewHaloCharacter::SetCurrentActionSelection(int32 InCurrentActionSelection)
+{
+	this->CurrentActionSelection = InCurrentActionSelection;
+}
+

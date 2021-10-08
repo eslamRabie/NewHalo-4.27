@@ -15,9 +15,13 @@ class ANewHaloHUD : public AHUD
 
 public:
 	ANewHaloHUD();
+
+//////////////
+///
+///
 	
 	void UpdateHealth(float HealthPercentage);
-
+	
 
 ///////////////
 ///
@@ -39,19 +43,34 @@ public:
 
 	void SetSmallWeaponIcon(UTexture2D* Icon);
 
-	void SetWeapon1Ammo(int32 NewAmmo);
+	void SetWeapon1Ammo(FVector NewAmmo);
 	
-	void SetWeapon2Ammo(int32 NewAmmo);
+	void SetWeapon2Ammo(FVector NewAmmo);
 
-	void SetSmallWeaponAmmo(int32 NewAmmo);
+	void SetSmallWeaponAmmo(FVector NewAmmo);
 
 /////////////////
 ///
 /// Control Point
 ///
 
-	void SetControlPointTeam(ETeams Team);
+	void SetControlPointTeam(ENHTeams Team);
 	
+
+///
+///Start/End Game
+///
+
+	void SetStartGameTimer(float Time);
+
+	void SetEndGameTimer(float Time);
+
+	void ShowWinner(ENHTeams WinnerTeam);
+
+
+// Notifications
+
+	void NotifyKill(FString KillerName, FString TargetName);
 
 protected:
 	virtual void BeginPlay() override;

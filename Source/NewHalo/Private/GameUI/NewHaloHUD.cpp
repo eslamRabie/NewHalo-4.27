@@ -34,6 +34,7 @@ void ANewHaloHUD::SetInventoryItemIcon(UTexture2D* Icon, int32 SlotIndex)
 
 void ANewHaloHUD::SetInventoryItemCount(int32 Count, int32 SlotIndex)
 {
+	//todo
 }
 
 void ANewHaloHUD::SetWeapon1Icon(UTexture2D* Icon)
@@ -51,24 +52,44 @@ void ANewHaloHUD::SetSmallWeaponIcon(UTexture2D* Icon)
 	MainGameWidget->SetSmallWeaponIcon(Icon);
 }
 
-void ANewHaloHUD::SetWeapon1Ammo(int32 NewAmmo)
+void ANewHaloHUD::SetWeapon1Ammo(FVector NewAmmo)
 {
 	MainGameWidget->SetWeapon1Ammo(NewAmmo);
 }
 
-void ANewHaloHUD::SetWeapon2Ammo(int32 NewAmmo)
+void ANewHaloHUD::SetWeapon2Ammo(FVector NewAmmo)
 {
 	MainGameWidget->SetWeapon2Ammo(NewAmmo);
 }
 
-void ANewHaloHUD::SetSmallWeaponAmmo(int32 NewAmmo)
+void ANewHaloHUD::SetSmallWeaponAmmo(FVector NewAmmo)
 {
 	MainGameWidget->SetSmallWeaponAmmo(NewAmmo);
 }
 
-void ANewHaloHUD::SetControlPointTeam(ETeams Team)
+void ANewHaloHUD::SetControlPointTeam(ENHTeams Team)
 {
 	MainGameWidget->SetControlPointTeam(Team);
+}
+
+void ANewHaloHUD::SetStartGameTimer(float Time)
+{
+	MainGameWidget->ShowTimer(Time);
+}
+
+void ANewHaloHUD::SetEndGameTimer(float Time)
+{
+	MainGameWidget->ShowTimer(Time);
+}
+
+void ANewHaloHUD::ShowWinner(ENHTeams WinnerTeam)
+{
+	//todo
+}
+
+void ANewHaloHUD::NotifyKill(FString KillerName, FString TargetName)
+{
+	MainGameWidget->NotifyKill(FString(KillerName + " Killed " + TargetName));
 }
 
 void ANewHaloHUD::BeginPlay()

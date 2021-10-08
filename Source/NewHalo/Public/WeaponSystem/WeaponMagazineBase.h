@@ -9,7 +9,7 @@
 #include "WeaponMagazineBase.generated.h"
 
 UCLASS()
-class NEWHALO_API AWeaponMagazineBase : public AEquipment
+class NEWHALO_API AWeaponMagazineBase : public AActor
 {
 	GENERATED_BODY()
 	
@@ -27,21 +27,36 @@ class NEWHALO_API AWeaponMagazineBase : public AEquipment
 
 	public:
 	UFUNCTION()
-	virtual void Reload(int32 InAmount, int32& OutAmount);
+	virtual void Reload();
 
 	virtual bool IsEmpty();
 
-	virtual class AWeaponProjectileBase* GetProjectile();
+	virtual class AWeaponProjectileBase* GetProjectile(FVector Location, FRotator Rotation);
 
 	protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Magazine)
 	int32 MaxAmmo;
 
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Magazine)
 	int32 CurrentAmmoCount;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Magazine)
-	USkeletalMeshComponent* MagazineSkeletalMeshComponent;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Magazine)
+	int32 AmmoPack;
+	
+public:
+	UFUNCTION(BlueprintCallable)
+	int32 GetCurrentAmmoCount() const;
+	UFUNCTION(BlueprintCallable)
+	int32 GetAmmoPack() const;
+	UFUNCTION(BlueprintCallable)
+	int32 GetMaxAmmo() const;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	USceneComponent* SceneComponent;
+protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta=(AllowPrivateAccess))
+	UStaticMeshComponent* MagazineMeshComponent;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Magazine)
 	TSubclassOf<class AWeaponProjectileBase> ProjectileClass;

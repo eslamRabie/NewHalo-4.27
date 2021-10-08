@@ -4,13 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Player/NHPlayerState.h"
 #include "MainGameWidget.generated.h"
 
+class UNotificationWidget;
 class UProgressBar;
 class UTextBlock;
 class UImage;
 class UUniformGridPanel;
-enum class ETeams;
 /**
  * 
  */
@@ -22,6 +23,7 @@ class NEWHALO_API UMainGameWidget : public UUserWidget
 public:
 
 	void UpdateHealth(float HealthPercentage);
+
 	
 	///////////////
 	///
@@ -32,7 +34,7 @@ public:
 
 	void SetInventoryItemCount(int32 Count, int32 SlotIndex);
 
-
+	
 	//////////////
 	///
 	/// Main Weapons Slots
@@ -44,23 +46,42 @@ public:
 
 	void SetSmallWeaponIcon(UTexture2D* Icon);
 
-	void SetWeapon1Ammo(int32 NewAmmo);
+	void SetWeapon1Ammo(FVector NewAmmo);
 	
-	void SetWeapon2Ammo(int32 NewAmmo);
+	void SetWeapon2Ammo(FVector NewAmmo);
 
-	void SetSmallWeaponAmmo(int32 NewAmmo);
+	void SetSmallWeaponAmmo(FVector NewAmmo);
 
 	/////////////////
 	///
 	/// Control Point
 	///
 
-	void SetControlPointTeam(ETeams Team);
+	void SetControlPointTeam(ENHTeams Team);
 
+
+	////
+	/// Show Timer
+	/// 
+	void ShowTimer(int32 Time);
+
+	/// Notifykill
+	///
+	void NotifyKill(FString Message);
+	
+	
 protected:
 	virtual void NativeOnInitialized() override;
+
+private:
+	void UpdateTime();
 	
 private:
+
+
+	UPROPERTY(meta=(BindWidget))
+	UNotificationWidget* NotificationWidget; 
+	
 	UPROPERTY(meta=(BindWidget))
 	UUniformGridPanel* Inventory;
 
@@ -86,7 +107,18 @@ private:
 	UPROPERTY(meta=(BindWidget))
 	UTextBlock* SmallWeaponAmmo;
 
+	UPROPERTY(meta=(BindWidget))
+	UTextBlock* Weapon1AmmoPack;
+	UPROPERTY(meta=(BindWidget))
+	UTextBlock* Weapon2AmmoPack;
+	UPROPERTY(meta=(BindWidget))
+	UTextBlock* SmallWeaponAmmoPack;
+
+	UPROPERTY(meta=(bindWidget))
+	UTextBlock* TimerText;
 	
-	
+	FTimerHandle TimerHandle;
+
+	int32 CurrentTime;
 	
 };

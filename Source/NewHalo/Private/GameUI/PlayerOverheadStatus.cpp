@@ -6,6 +6,11 @@
 #include "Components/ProgressBar.h"
 #include "Player/NHPlayerState.h"
 
+void UPlayerOverheadStatus::UpdateHealth(float Percent)
+{
+	Health->Percent = Percent;
+}
+
 void UPlayerOverheadStatus::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
@@ -15,14 +20,23 @@ void UPlayerOverheadStatus::NativeOnInitialized()
 		UE_LOG(LogTemp, Error, TEXT("Cant get PS in OnInitialized UPlayerOverheadStatus in %s"), *GetName());
 		return;
 	}
+	PlayerName->SetText(FText::FromString(PS->GetPlayerName()));
+	auto PlayerTeam = PS->GetPlayerTeam();
+	if(PlayerTeam == ENHTeams::BlueTeam)
+	{
+		Health->SetFillColorAndOpacity(FLinearColor::Blue);
+	}
+	else if(PlayerTeam == ENHTeams::RedTeam)
+	{
+		Health->SetFillColorAndOpacity(FLinearColor::Red);
+	}
+	else
+	{
+		Health->SetFillColorAndOpacity(FLinearColor::Gray);
+	}
 }
 
 void UPlayerOverheadStatus::NativeTick(const FGeometry& MovieSceneBlends, float InDeltaTime)
 {
 	Super::NativeTick(MovieSceneBlends, InDeltaTime);
-	if(!PS)
-	{
-		return;
-	}
-	Health->SetPercent(PS->GetHealth()/ PS->GetMaxHealth());
 }

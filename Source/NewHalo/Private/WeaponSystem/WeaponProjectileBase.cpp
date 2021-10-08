@@ -3,6 +3,7 @@
 
 #include "WeaponSystem/WeaponProjectileBase.h"
 
+#include "Components/SphereComponent.h"
 #include "Player/NHPlayerState.h"
 #include "Player/NewHaloCharacter.h"
 
@@ -10,24 +11,35 @@
 // Sets default values
 AWeaponProjectileBase::AWeaponProjectileBase()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-	SpeedCMPerSec = 10;
+	// Use a sphere as a simple collision representation
+	CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComp"));
+	CollisionComp->InitSphereRadius(5.0f);
+	CollisionComp->BodyInstance.SetCollisionProfileName("Projectile");
+	CollisionComp->OnComponentHit.AddDynamic(this, &AWeaponProjectileBase::OnHit);		// set up a notification for when this component hits something blocking
 
-	RootComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RootComponent"));
-	
-	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
+	// Players can't walk on it
+	CollisionComp->SetWalkableSlopeOverride(FWalkableSlopeOverride(WalkableSlope_Unwalkable, 0.f));
+	CollisionComp->CanCharacterStepUpOn = ECB_No;
+
+	// Set as root component
+	RootComponent = CollisionComp;
+
+	// Use a ProjectileMovementComponent to govern this projectile's movement
+	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileComp"));
+	ProjectileMovement->UpdatedComponent = CollisionComp;
+	ProjectileMovement->InitialSpeed = 3000.f;
+	ProjectileMovement->MaxSpeed = 3000.f;
+	ProjectileMovement->bRotationFollowsVelocity = true;
+	ProjectileMovement->bShouldBounce = true;
+
+	// Die after 3 seconds by default
+	InitialLifeSpan = 3.0f;
+
+	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMesh"));
 	MeshComponent->SetupAttachment(RootComponent);
-
-	MovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>("MovementComponent");
-	MovementComponent->Velocity = FVector::ZeroVector;
-
-	MovementComponent->InitialSpeed = SpeedCMPerSec;
-	MovementComponent->MaxSpeed = SpeedCMPerSec;
-	MovementComponent->bRotationFollowsVelocity = true;
-	MovementComponent->bShouldBounce = true;
-	MovementComponent->Bounciness = 0.3f;
-	MovementComponent->ProjectileGravityScale = 0.0f;
+	
+	//
+	bReplicates = true;
 
 }
 
@@ -45,57 +57,41 @@ void AWeaponProjectileBase::Tick(float DeltaTime)
 
 }
 
-void AWeaponProjectileBase::OnShoot(ANewHaloCharacter* InOwnerCharacter, FVector Direction,float InRange, float InDamage)
+void AWeaponProjectileBase::OnShoot(ANewHaloCharacter* InOwnerCharacter, float InRange, float InDamage)
 {
 	Range = InRange;
 	DamageFactor = InDamage;
 	OwnerCharacter = InOwnerCharacter;
-	FCollisionQueryParams TraceParams;
-
-	GetWorld()->LineTraceSingleByChannel(OUT Hit,GetActorLocation(),GetActorForwardVector() * Range,
-		ECC_Visibility, TraceParams);
-
-	auto Dist = GetDistanceTo(HitActor);
-	auto Time = Dist / SpeedCMPerSec;
-
-
-	//TODO Debug the projectile direction and movement 
-	
-	MovementComponent->Velocity = Direction * SpeedCMPerSec;
-	UE_LOG(LogTemp, Error, TEXT("%f"), SpeedCMPerSec);
-	UE_LOG(LogTemp, Error, TEXT("test %f, %s , %s"), SpeedCMPerSec, *GetActorLocation().ToString(), *MovementComponent->Velocity.ToString());
-
-	if(Hit.GetActor()->IsA(ANewHaloCharacter::StaticClass()))
-	{
-		HitActor = Cast<ANewHaloCharacter>(Hit.GetActor());
-		if(HitActor)
-		{
-			GetWorldTimerManager().SetTimer(TimerHandle, this, &AWeaponProjectileBase::OnHit,Time, false);
-		}
-	}
-	else
-	{
-		//TODO Check if the other actor can interact with projectiles  
-	}
-	
 }
 
-void AWeaponProjectileBase::OnHit()
+void AWeaponProjectileBase::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	FVector NormalImpulse, const FHitResult& Hit)
 {
-	UE_LOG(LogTemp, Error, TEXT("Destroy"));
-	FPointDamageEvent PointDamageEvent(DamageFactor, Hit, GetActorLocation(), UDamageType::StaticClass());
-	auto HitPS = HitActor->GetPlayerState<ANHPlayerState>();
-	auto OwnerPS = OwnerCharacter->GetPlayerState<ANHPlayerState>();
-	if(HitPS && OwnerPS)
+	if(OtherActor && OtherActor->IsA(ANewHaloCharacter::StaticClass()))
 	{
-		if(HitPS->GetPlayerTeam() != OwnerPS->GetPlayerTeam())
+		auto OtherCharacter = Cast<ANewHaloCharacter>(OtherActor);
+		if(OtherCharacter && OtherCharacter != OwnerCharacter)
 		{
-			HitActor->TakeDamage(DamageFactor, PointDamageEvent, OwnerCharacter->GetNetOwningPlayer()->GetPlayerController(GetWorld()), this);
+			FPointDamageEvent PointDamageEvent(DamageFactor, Hit, GetActorLocation(), UDamageType::StaticClass());
+			auto HitPS = OtherCharacter->GetPlayerState<ANHPlayerState>();
+			auto OwnerPS = OwnerCharacter->GetPlayerState<ANHPlayerState>();
+			if(HitPS && OwnerPS)
+			{
+				if(HitPS->GetPlayerTeam() != OwnerPS->GetPlayerTeam())
+				{
+					OtherActor->TakeDamage(DamageFactor, PointDamageEvent, OwnerCharacter->GetNetOwningPlayer()->GetPlayerController(GetWorld()), this);
+				}
+				else
+				{
+					OtherActor->TakeDamage(0, PointDamageEvent, OwnerCharacter->GetNetOwningPlayer()->GetPlayerController(GetWorld()), this);
+				}
+			}
 		}
-		else
-		{
-			HitActor->TakeDamage(0, PointDamageEvent, OwnerCharacter->GetNetOwningPlayer()->GetPlayerController(GetWorld()), this);
-		}
+	}
+	// Only add impulse and destroy projectile if we hit a physics
+	else if (OtherActor && (OtherActor != this) && (OtherComp != nullptr) && OtherComp->IsSimulatingPhysics())
+	{
+		OtherComp->AddImpulseAtLocation(GetVelocity() * 100.0f, GetActorLocation());
 	}
 	Destroy();
 }

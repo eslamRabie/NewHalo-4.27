@@ -6,6 +6,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "WeaponProjectileBase.generated.h"
 
+class USphereComponent;
 class ANewHaloCharacter;
 UCLASS()
 class NEWHALO_API AWeaponProjectileBase : public AActor
@@ -24,10 +25,11 @@ class NEWHALO_API AWeaponProjectileBase : public AActor
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	void OnShoot(ANewHaloCharacter* OwnerCharacter, FVector InDirection,float InRange, float InDamage);
+	void OnShoot(ANewHaloCharacter* OwnerCharacter, float InRange, float InDamage);
 
-	void OnHit();
-	
+	/** called when projectile hits something */
+	UFUNCTION()
+	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 	
 	private:
 
@@ -35,22 +37,27 @@ class NEWHALO_API AWeaponProjectileBase : public AActor
 	UStaticMeshComponent* MeshComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=_Projectile)
-	UProjectileMovementComponent* MovementComponent;
+	UProjectileMovementComponent* ProjectileMovement;
+
+	/** Sphere collision component */
+	UPROPERTY(VisibleDefaultsOnly, Category=Projectile)
+	USphereComponent* CollisionComp;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess = "true"), Category=_Projectile)
 	float SpeedCMPerSec;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess = "true"), Category=_Projectile)
+	FVector MovementOffset;
+	
 
 	float DamageFactor;
 
 	float Range;
 
-	UPROPERTY()
-	ANewHaloCharacter* HitActor;
 
 	UPROPERTY()
 	ANewHaloCharacter* OwnerCharacter;
 	
-	FTimerHandle TimerHandle;
-	FHitResult Hit;
+
+
 	
 };

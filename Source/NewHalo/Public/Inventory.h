@@ -32,6 +32,7 @@ public:
 
 	void DropEquipmentFromSlot(int32 SlotIndex);
 	
+	
 protected:
 	
 	

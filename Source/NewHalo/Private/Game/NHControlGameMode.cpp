@@ -3,6 +3,7 @@
 
 #include "Game/NHControlGameMode.h"
 
+#include "Control/ControlPoint.h"
 #include "Control/ControlPointSpawner.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -57,5 +58,4 @@ void ANHControlGameMode::GetControlPoint()
 void ANHControlGameMode::UpdateControlPointStats()
 {
 	auto Team = GameControlPoint->GetControlTeam();
-	
 }

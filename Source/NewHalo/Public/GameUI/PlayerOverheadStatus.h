@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/TextBlock.h"
 #include "PlayerOverheadStatus.generated.h"
 
 class ANHPlayerState;
@@ -15,6 +16,9 @@ UCLASS()
 class NEWHALO_API UPlayerOverheadStatus : public UUserWidget
 {
 	GENERATED_BODY()
+
+public:
+	void UpdateHealth(float Percent);
 	
 protected:
 
@@ -25,6 +29,9 @@ private:
 
 	UPROPERTY(meta=(BindWidget))
 	UProgressBar* Health;
+
+	UPROPERTY(meta=(BindWidget))
+	UTextBlock* PlayerName;
 
 	UPROPERTY()
 	ANHPlayerState* PS;

@@ -5,7 +5,9 @@
 
 #include "Components/SphereComponent.h"
 #include "Engine/SkeletalMeshSocket.h"
+#include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
+#include "Player/NewHaloCharacter.h"
 #include "WeaponSystem/WeaponMagazineBase.h"
 #include "WeaponSystem/WeaponProjectileBase.h"
 
@@ -29,6 +31,10 @@ AWeaponBase::AWeaponBase()
 
 	ParticleSystemComponent = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("FireVFX"));
 	ParticleSystemComponent->SetupAttachment(RootComponent);
+
+	AttachedSocketName = TEXT("None");
+
+	bStopFiring = true;
 }
 
 // Called when the game starts or when spawned
@@ -41,18 +47,13 @@ void AWeaponBase::BeginPlay()
 	ParticleSystemComponent->Template = FiringEffect;
 }
 
-void AWeaponBase::OnConstruction(const FTransform& Transform)
-{
-	Super::OnConstruction(Transform);
-}
-
 // Called every frame
 void AWeaponBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 }
 
-void AWeaponBase::Fire(FVector Direction)
+void AWeaponBase::Fire(FVector Location, FRotator Rotation)
 {
 	if(!bCanFire)
 	{
@@ -66,27 +67,75 @@ void AWeaponBase::Fire(FVector Direction)
 	if(WeaponMagazine->IsEmpty())
 	{
 		// Play Empty Magazine Sound
+		if(EmptyMagazineSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, EmptyMagazineSound, GetActorLocation());
+		}
 		return;
 	}
+
 	
-
-	auto Projectile = WeaponMagazine->GetProjectile();
-
+	auto Projectile = WeaponMagazine->GetProjectile(WeaponSkeletalMeshComponent->GetSocketLocation(MuzzleSocketName),
+		WeaponSkeletalMeshComponent->GetSocketRotation(MuzzleSocketName));
+	
 	if(Projectile)
 	{
 		bCanFire = false;
 		ParticleSystemComponent->Activate();
-		Projectile->OnShoot(OwnerPlayer, Direction, Range, WeaponDamage);
+		Projectile->OnShoot(OwnerPlayer, Range, WeaponDamage);
 		GetWorldTimerManager().SetTimer(FireTimerHandle, this, &AWeaponBase::ShootingCoolDown, FireRate, false);
+
+		// try and play the sound if specified
+		if (FireSound != nullptr)
+		{
+			UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
+		}
+
+		// try and play a firing animation if specified
+		if (FireAnimation != nullptr)
+		{
+			// Get the animation object for the arms mesh
+			UAnimInstance* AnimInstance = OwnerPlayer->GetMesh()->GetAnimInstance();
+			if (AnimInstance != nullptr)
+			{
+				AnimInstance->Montage_Play(FireAnimation, 1.f);
+			}
+		}
 	}
-	
-	
 }
+
+void AWeaponBase::ShootingCoolDown()
+{
+	bCanFire = true;
+	ParticleSystemComponent->Deactivate();
+	if(bIsAutomatic && !bStopFiring)
+	{
+		Fire(OwnerPlayer->GetMuzzleLocation(), OwnerPlayer->GetActorRotation());
+	}
+}
+
 
 void AWeaponBase::Reload()
 {
-	int32 X;
-	WeaponMagazine->Reload(40, X);
+	WeaponMagazine->Reload();
+
+	if(ReloadAnimation)
+	{
+		UAnimInstance* AnimInstance = OwnerPlayer->GetMesh()->GetAnimInstance();
+		if (AnimInstance != nullptr)
+		{
+			AnimInstance->Montage_Play(ReloadAnimation, 1.f);
+		}
+	}
+	if(ReloadSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, ReloadSound, GetActorLocation());
+	}
+}
+
+FVector AWeaponBase::GetAmmo()
+{
+	return FVector(WeaponMagazine->GetCurrentAmmoCount(), WeaponMagazine->GetMaxAmmo(), WeaponMagazine->GetAmmoPack());
 }
 
 void AWeaponBase::Pick_Implementation(ANewHaloCharacter* PickingPlayer, int Amount)
@@ -99,22 +148,24 @@ void AWeaponBase::Drop_Implementation(int Amount)
 {
 	IPickable::Drop_Implementation(Amount);
 	OwnerPlayer = nullptr;
+	UnEquip_Implementation();
 }
 
 void AWeaponBase::Equip_Implementation(FName SocketName)
 {
 	IEquippable::Equip_Implementation(SocketName);
+	if(AttachedSocketName == TEXT("None"))
+	{
+		AttachedSocketName = SocketName;
+	}
+	AttachToComponent(OwnerPlayer->GetMesh3P(), FAttachmentTransformRules::SnapToTargetIncludingScale, SocketName);
 }
 
 void AWeaponBase::UnEquip_Implementation()
 {
 	IEquippable::UnEquip_Implementation();
-}
-
-void AWeaponBase::ShootingCoolDown()
-{
-	bCanFire = true;
-	ParticleSystemComponent->Deactivate();
+	AttachedSocketName = TEXT("None");
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 }
 
 float AWeaponBase::GetRange() const
@@ -145,6 +196,11 @@ EWeaponType AWeaponBase::GetWeaponType() const
 ANewHaloCharacter* AWeaponBase::GetOwnerPlayer() const
 {
 	return OwnerPlayer;
+}
+
+UTexture2D* AWeaponBase::GetWeaponIcon() const
+{
+	return WeaponIcon;
 }
 
 FName AWeaponBase::GetAttachedSocketName() const

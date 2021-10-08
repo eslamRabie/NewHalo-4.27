@@ -3,9 +3,12 @@
 
 #include "Player/NHPlayerState.h"
 
+#include "Game/NewHaloGameMode.h"
 #include "GameUI/NewHaloHUD.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
+#include "Player/NewHaloCharacter.h"
+#include "Player/NHPlayerController.h"
 
 ANHPlayerState::ANHPlayerState()
 {
@@ -16,15 +19,44 @@ ANHPlayerState::ANHPlayerState()
 void ANHPlayerState::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	Health -= 0.1;
+	Health -= 0.5;
 }
 
 void ANHPlayerState::BeginPlay()
 {
 	Super::BeginPlay();
-	Health = MaxHealth;
-	Kills = 0;
-	Deaths = 0;
+	if(HasLocalNetOwner())
+	{
+		PC = GetWorld()->GetFirstPlayerController<ANHPlayerController>();
+		HUD = PC->GetHUD<ANewHaloHUD>();
+		if(!HUD)
+		{
+			GetWorldTimerManager().SetTimer(TimerHandle, this, &ANHPlayerState::TryGetHUD, 1);
+		}
+	}
+	if(HasAuthority() && GetNetMode() < ENetMode::NM_Client)
+	{
+		Health = MaxHealth;
+		Kills = 0;
+		Deaths = 0;
+		GM = GetWorld()->GetAuthGameMode<ANewHaloGameMode>();
+	}
+}
+
+void ANHPlayerState::ReduceHealth(ANHPlayerController* ShooterPC, float Amount)
+{
+	if(!HasAuthority() || GetNetMode() == ENetMode::NM_Client)
+	{
+		return;
+	}
+	Health -= Amount;
+	if(Health <= 0)
+	{
+		if(GM)
+		{
+			GM->AddKills(ShooterPC, PC);
+		}
+	}
 }
 
 void ANHPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
@@ -37,43 +69,28 @@ void ANHPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 
 void ANHPlayerState::OnRep_Health()
 {
-	auto PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-	if(!PC)
+	if(HasLocalNetOwner())
 	{
-		UE_LOG(LogTemp, Error, TEXT("Not PC in %s"), *GetName());
-		return;
+		if(HUD)
+		{
+			HUD->UpdateHealth(Health/MaxHealth);
+		}
 	}
-	auto HUD = PC->GetHUD<ANewHaloHUD>();
+	HealthUpdate.Execute(Health/MaxHealth);
+}
+
+void ANHPlayerState::SetPlayerTeam_Implementation(ENHTeams Team)
+{
+	PlayerTeam = Team;
+}
+
+void ANHPlayerState::TryGetHUD()
+{
+	HUD = PC->GetHUD<ANewHaloHUD>();
 	if(!HUD)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Not HUD %s"), *GetName());
-		return;
+		GetWorldTimerManager().SetTimer(TimerHandle, this, &ANHPlayerState::TryGetHUD, 1);
 	}
-	HUD->UpdateHealth(Health/MaxHealth);
-}
-void ANHPlayerState::OnRep_Kills()
-{
-}
-
-void ANHPlayerState::OnRep_Deaths()
-{
-}
-
-void ANHPlayerState::SetPlayerTeam(ETeams Team)
-{
-	PlayerTeam = Team;
-	ClientSetPlayerTeam(Team);
-}
-
-void ANHPlayerState::ClientSetPlayerTeam_Implementation(ETeams Team)
-{
-	UE_LOG(LogTemp, Error, TEXT("Called On %s"), *GetName())
-	PlayerTeam = Team;
-}
-
-void ANHPlayerState::OnRep_Score()
-{
-	Super::OnRep_Score();
 }
 
 float ANHPlayerState::GetHealth() const
@@ -96,7 +113,49 @@ float ANHPlayerState::GetDeaths() const
 	return Deaths;
 }
 
-ETeams ANHPlayerState::GetPlayerTeam() const
+ENHTeams ANHPlayerState::GetPlayerTeam() const
 {
 	return PlayerTeam;
+}
+
+void ANHPlayerState::RegisterLocalCharacter(ANewHaloCharacter* PlayerCharacter)
+{
+	HealthUpdate.BindUObject(PlayerCharacter, &ANewHaloCharacter::UpdateHealth);
+}
+
+
+void ANHPlayerState::AddKills_Implementation()
+{
+	if(HasAuthority() && GetNetMode() < ENetMode::NM_Client)
+	{
+		Kills++;
+	}
+}
+
+void ANHPlayerState::NotifyKill_Implementation(ANHPlayerState* ShooterPS, ANHPlayerState* TargetPS)
+{
+	if(HasLocalNetOwner())
+	{
+		if(this == ShooterPS)
+		{
+			if(HUD)
+			{
+				HUD->NotifyKill("You", TargetPS->GetPlayerName());
+			}
+		}
+		else if(this == TargetPS)
+		{
+			if(HUD)
+			{
+				HUD->NotifyKill(ShooterPS->GetPlayerName(), "You");
+			}
+		}
+		else
+		{
+			if(HUD)
+			{
+				HUD->NotifyKill(ShooterPS->GetPlayerName(), TargetPS->GetPlayerName());
+			}
+		}
+	}
 }

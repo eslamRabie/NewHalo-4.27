@@ -10,8 +10,12 @@
  * 
  */
 
-UENUM()
-enum class ETeams
+class ANewHaloCharacter;
+class ANewHaloHUD;
+class ANewHaloGameMode;
+class ANHPlayerController;
+UENUM(BlueprintType, Blueprintable)
+enum class ENHTeams: uint8
 {
 	None,
 	BlueTeam,
@@ -31,28 +35,29 @@ public:
 protected:	
 
 	virtual void BeginPlay() override;
-
-	
 	
 public:
 
+	void ReduceHealth(ANHPlayerController* ShooterPC, float Amount);
+	
 	UFUNCTION()
 	void OnRep_Health();
 
-	UFUNCTION()
-	void OnRep_Kills();
-
-	UFUNCTION()
-	void OnRep_Deaths();
-
-	UFUNCTION()
-	void SetPlayerTeam(ETeams Team);
-
-	UFUNCTION(Client, Reliable)
-	void ClientSetPlayerTeam(ETeams Team);
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	void SetPlayerTeam(ENHTeams Team);
 	
-	virtual void OnRep_Score() override;
 
+	UPROPERTY()
+	ANHPlayerController* PC;
+
+	UPROPERTY()
+	ANewHaloGameMode* GM;
+
+	UPROPERTY()
+	ANewHaloHUD* HUD;
+
+private:
+	void TryGetHUD();
 	
 protected:	
 
@@ -64,20 +69,39 @@ private:
 	UPROPERTY()
 	float MaxHealth;
 	
-	UPROPERTY(ReplicatedUsing=OnRep_Kills)
+	UPROPERTY(Replicated)
 	float Kills;
 
-	UPROPERTY(ReplicatedUsing=OnRep_Deaths)
+	UPROPERTY(Replicated)
 	float Deaths;
 
-	UPROPERTY()
-	ETeams PlayerTeam;
+	UPROPERTY(Replicated)
+	ENHTeams PlayerTeam;
+
+	FTimerHandle TimerHandle;
+	
 public:
+	UFUNCTION(BlueprintCallable)
 	float GetHealth() const;
+	UFUNCTION(BlueprintCallable)
 	float GetMaxHealth() const;
+	UFUNCTION(BlueprintCallable)
 	float GetKills() const;
+	UFUNCTION(BlueprintCallable)
 	float GetDeaths() const;
-	ETeams GetPlayerTeam() const;
+	UFUNCTION(BlueprintCallable)
+	ENHTeams GetPlayerTeam() const;
+
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	void NotifyKill(ANHPlayerState* ShooterPS, ANHPlayerState* TargetPS);
+
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	void AddKills();
+	
+	void RegisterLocalCharacter(ANewHaloCharacter* PlayerCharacter);
+
+	TDelegate<void(float)> HealthUpdate;
+	
 };
 
 

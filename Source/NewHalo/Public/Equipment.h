@@ -25,69 +25,42 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-
-/////////////
 /// Use Equipment
-///
-
 	virtual void Use();
-
 	virtual void StopUsing();
 	
-////////////////////////////////////
-///
-/// Start IEquippable interface
-///
+
+// Start IEquippable interface
 	virtual void Equip_Implementation(FName InSocketName) override;
-
 	virtual void EquipInDesiredSocket_Implementation() override;
-	
 	virtual void UnEquip_Implementation() override;
-/////
-/// End IEquippable interface 
-/// 
+// End IEquippable interface 
 
-
-/////////////////////////////////////
+	
 /// Start IPickable interface
-/// 
-
 	virtual void Pick_Implementation(ANewHaloCharacter* PickingPlayer, int Amount) override;
-
 	virtual void Drop_Implementation(int Amount) override;
-//////
 /// End IPickable interface
 
 	
 protected:	
 
-private:
-
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess))
+	UStaticMeshComponent* WorldMeshComponent;
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess))
+	UStaticMeshComponent* EquippedMeshComponent;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Equipment)
 	FName SocketName;
-
 	UPROPERTY()
 	ANewHaloCharacter* CurrentOwner;
-	
-//////////
-/// Visuals
-/// 
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Equipment)
 	UTexture2D* Icon;
+	
 public:
 	FName GetSocketName() const;
 	UTexture2D* GetIcon() const;
-private:
-	////////////
-/// Components
-/// 
 
-	UPROPERTY(BlueprintReadWrite, meta=(AllowPrivateAccess))
-	UStaticMeshComponent* WorldMeshComponent;
-
-	UPROPERTY(BlueprintReadWrite, meta=(AllowPrivateAccess))
-	UStaticMeshComponent* EquippedMeshComponent;
 
 
 };

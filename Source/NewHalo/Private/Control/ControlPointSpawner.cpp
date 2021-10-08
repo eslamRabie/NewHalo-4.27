@@ -11,7 +11,7 @@ AControlPointSpawner::AControlPointSpawner()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
+	bReplicates = true;
 }
 
 // Called when the game starts or when spawned
@@ -30,22 +30,27 @@ void AControlPointSpawner::Tick(float DeltaTime)
 
 AControlPoint* AControlPointSpawner::SpawnControlPoint()
 {
-	if(!ControlPointClass)
+	if(GetNetMode() < ENetMode::NM_Client && HasAuthority())
 	{
-		UE_LOG(LogTemp, Error, TEXT("Controlpoint class must be set in BP"));
-		return nullptr;
+		if(!ControlPointClass)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Controlpoint class must be set in BP"));
+			return nullptr;
+		}
+		auto World = GetWorld();
+		if(!World)
+		{
+			return nullptr;
+		}
+		ControlPoint = World->SpawnActor<AControlPoint>(ControlPointClass, GetActorLocation(), GetActorRotation());
+		//ControlPoint->SetActorLocationAndRotation(GetActorLocation(), GetActorRotation());
+		if(!ControlPoint)
+		{
+			return nullptr;
+		}
+		return ControlPoint;
 	}
-	auto World = GetWorld();
-	if(!World)
-	{
-		return nullptr;
-	}
-	ControlPoint = World->SpawnActor<AControlPoint>(ControlPointClass, GetActorLocation(), GetActorRotation());
-	if(!ControlPoint)
-	{
-		return nullptr;
-	}
-	return ControlPoint;
+	return nullptr;
 }
 
 AControlPoint* AControlPointSpawner::GetControlPoint()

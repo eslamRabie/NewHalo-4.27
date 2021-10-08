@@ -18,7 +18,11 @@ class NEWHALO_API ANHControlGameState : public ANHGameStateBase
 
 private:
 
-	UPROPERTY()
-	ETeams ControlTeam;
+	UPROPERTY(Replicated)
+	ENHTeams ControlTeam;
 	
+public:
+	ENHTeams GetControlTeam() const;
+	void SetControlTeam(ENHTeams InControlTeam);
+
 };

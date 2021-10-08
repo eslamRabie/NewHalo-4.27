@@ -81,3 +81,4 @@ void UInventory::DropEquipmentFromSlot(int32 SlotIndex)
 	InventoryList[SlotIndex] = nullptr;
 }
 
+

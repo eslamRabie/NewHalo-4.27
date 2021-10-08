@@ -7,6 +7,7 @@
 #include "GameFramework/GameMode.h"
 #include "NHControlGameMode.generated.h"
 
+class AControlPoint;
 /**
  * 
  */

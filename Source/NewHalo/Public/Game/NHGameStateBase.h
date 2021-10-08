@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameState.h"
+#include "Player/NHPlayerState.h"
 #include "NHGameStateBase.generated.h"
 
 class UProgressBar;
@@ -15,5 +16,11 @@ class NEWHALO_API ANHGameStateBase : public AGameState
 {
 	GENERATED_BODY()
 
+	UPROPERTY(Replicated)
+	ENHTeams WinningTeam;
+	
+public:
+	ENHTeams GetWinningTeam() const;
+	void SetWinningTeam(ENHTeams InWinningTeam);
 	
 };

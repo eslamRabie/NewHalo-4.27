@@ -13,8 +13,8 @@ class USphereComponent;
 class AWeaponProjectileBase;
 class AWeaponMagazineBase;
 
-UENUM()
-enum class EWeaponType
+UENUM(Blueprintable, BlueprintType)
+enum class EWeaponType: uint8
 {
 	Pistol,
 	Melee,
@@ -37,7 +37,6 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	virtual void OnConstruction(const FTransform& Transform) override;
 
 public:	
 	// Called every frame
@@ -46,10 +45,14 @@ public:
 
 public:
 	UFUNCTION()
-	virtual void Fire(FVector Direction);
+	virtual void Fire(FVector Location, FRotator Rotation);
 
 	UFUNCTION()
 	virtual void Reload();
+
+
+	UFUNCTION()
+	FVector GetAmmo();
 	
 	///////////////////////////////////
 	///
@@ -89,9 +92,7 @@ protected:
 	UFUNCTION()
 	void ShootingCoolDown();
 	
-	// Weapon Specs
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponSpecs)
-	float Range;
+
 	
 public:
 	float GetRange() const;
@@ -102,6 +103,10 @@ public:
 	ANewHaloCharacter* GetOwnerPlayer() const;
 	
 protected:
+	// Weapon Specs
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponSpecs)
+	float Range;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponSpecs)
 	float FireRate;
 
@@ -148,12 +153,20 @@ protected:
 	
 
 	// VFX/SFX 
+
+	/** Sound to play each time we fire */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=WeaponFX)
+	USoundBase* FireSound;
+
+	/** AnimMontage to play each time we fire */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WeaponFX)
+	UAnimMontage* FireAnimation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WeaponFX)
+	UAnimMontage* ReloadAnimation;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponFX)
 	UParticleSystem* FiringEffect;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponFX)
-	USoundBase* FiringSound;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponFX)
 	USoundBase* EmptyMagazineSound;
@@ -161,14 +174,32 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponFX)
 	USoundBase* ReloadSound;
 
+
+	/// Design
+	/// 
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponFX)
+	UTexture2D* WeaponIcon;
+public:
+	UTexture2D* GetWeaponIcon() const;
+protected:
 	UPROPERTY()
 	FName AttachedSocketName;
+	
 public:
 	FName GetAttachedSocketName() const;
 	void SetAttachedSocketName(FName InAttachedSocketName);
 protected:
 	bool bCanFire;
-
+	bool bStopFiring;
+public:
+	void SetStopFiring(bool InbStopFiring);
+protected:
 	FTimerHandle FireTimerHandle;
 	
 };
+
+inline void AWeaponBase::SetStopFiring(bool InbStopFiring)
+{
+	this->bStopFiring = InbStopFiring;
+}
