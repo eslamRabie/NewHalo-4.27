@@ -2,11 +2,12 @@
 
 #include "Game/NewHaloGameMode.h"
 
-#include "NHGameInstance.h"
+
 #include "Game/NHGameStateBase.h"
 #include "GameUI/NewHaloHUD.h"
 #include "Player/NewHaloCharacter.h"
 #include "Player/NHPlayerController.h"
+#include "GameFramework/GameSession.h"
 #include "UObject/ConstructorHelpers.h"
 
 ANewHaloGameMode::ANewHaloGameMode()
@@ -27,7 +28,6 @@ void ANewHaloGameMode::Tick(float DeltaSeconds)
 void ANewHaloGameMode::BeginPlay()
 {
 	Super::BeginPlay();
-	GSession = Cast<ANHGameSession>(GameSession);
 }
 
 void ANewHaloGameMode::RestartPlayer(AController* NewPlayer)
@@ -53,7 +53,7 @@ bool ANewHaloGameMode::ReadyToStartMatch_Implementation()
 	// By default start when we have > 0 players
 	if (GetMatchState() == MatchState::WaitingToStart)
 	{
-		if (NumPlayers == GSession->MaxPlayers && !bCanStartMatch)
+		if (NumPlayers == GameSession->MaxPlayers && !bCanStartMatch)
 		{
 			for (auto Player : PlayerControllers)
 			{

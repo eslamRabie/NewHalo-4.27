@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NHGameSession.h"
 #include "GameFramework/GameMode.h"
 #include "Player/NHPlayerState.h"
+
 #include "NewHaloGameMode.generated.h"
 
 class UNHGameInstance;
@@ -67,8 +67,6 @@ public:
 private:
 	UPROPERTY()
 	TArray<ANHPlayerController*> PlayerControllers;
-	UPROPERTY()
-	ANHGameSession* GSession;
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta=(AllowPrivateAccess), Category=GameDesign)
 	float MatchStartWaitingTimeInS;
