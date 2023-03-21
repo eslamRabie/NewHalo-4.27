@@ -12,27 +12,27 @@ UCLASS()
 class NEWHALO_API AWeaponProjectileBase : public AActor
 {
 	GENERATED_BODY()
-	
-	public:	
+
+public:
 	// Sets default values for this actor's properties
 	AWeaponProjectileBase();
 
-	protected:
+protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	public:	
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
 	void OnShoot(ANewHaloCharacter* OwnerCharacter, float InRange, float InDamage);
 
 	/** called when projectile hits something */
-	UFUNCTION()
-	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
-	
-	private:
+	UFUNCTION(Server, Reliable)
+	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse,
+	           const FHitResult& Hit);
 
+private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=_Projectile)
 	UStaticMeshComponent* MeshComponent;
 
@@ -42,12 +42,12 @@ class NEWHALO_API AWeaponProjectileBase : public AActor
 	/** Sphere collision component */
 	UPROPERTY(VisibleDefaultsOnly, Category=Projectile)
 	USphereComponent* CollisionComp;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess = "true"), Category=_Projectile)
 	float SpeedCMPerSec;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess = "true"), Category=_Projectile)
 	FVector MovementOffset;
-	
+
 
 	float DamageFactor;
 
@@ -56,8 +56,4 @@ class NEWHALO_API AWeaponProjectileBase : public AActor
 
 	UPROPERTY()
 	ANewHaloCharacter* OwnerCharacter;
-	
-
-
-	
 };

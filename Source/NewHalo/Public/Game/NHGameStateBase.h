@@ -18,9 +18,11 @@ class NEWHALO_API ANHGameStateBase : public AGameState
 
 	UPROPERTY(Replicated)
 	ENHTeams WinningTeam;
-	
+
 public:
 	ENHTeams GetWinningTeam() const;
+	UFUNCTION(Server, Reliable)
 	void SetWinningTeam(ENHTeams InWinningTeam);
-	
+	UFUNCTION(Server, Reliable)
+	void NotifyKill(ANHPlayerState* ShooterPS, ANHPlayerState* TargetPS);
 };

@@ -8,7 +8,11 @@
 
 void UNotificationWidget::AddMessage(FString Message)
 {
+	if(!GetWorld()) return;
 	auto NotMesWid = CreateWidget<UNotificationMessageWidget>(GetWorld());
+
+	if(!NotMesWid) return;
+	
 	NotMesWid->SetMessage(Message);
 	NotificationsArea->AddChildToVerticalBox(NotMesWid);
 }

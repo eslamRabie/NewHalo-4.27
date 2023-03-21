@@ -3,13 +3,12 @@
 
 #include "Control/ControlPointSpawner.h"
 
-#include "Kismet/GameplayStatics.h"
 #include "Control/ControlPoint.h"
 
 // Sets default values
 AControlPointSpawner::AControlPointSpawner()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
 }
@@ -18,33 +17,33 @@ AControlPointSpawner::AControlPointSpawner()
 void AControlPointSpawner::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 // Called every frame
 void AControlPointSpawner::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
 AControlPoint* AControlPointSpawner::SpawnControlPoint()
 {
-	if(GetNetMode() < ENetMode::NM_Client && HasAuthority())
+	if (GetWorld() && GetWorld()->GetAuthGameMode())
 	{
-		if(!ControlPointClass)
+		if (!ControlPointClass)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Controlpoint class must be set in BP"));
+			UE_LOG(LogTemp, Error, TEXT("Controlpoint class must be set in BP in: %s "), *GetName());
 			return nullptr;
 		}
 		auto World = GetWorld();
-		if(!World)
+		if (!World)
 		{
 			return nullptr;
 		}
-		ControlPoint = World->SpawnActor<AControlPoint>(ControlPointClass, GetActorLocation(), GetActorRotation());
+		FActorSpawnParameters SP;
+		SP.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		ControlPoint = World->SpawnActor<AControlPoint>(ControlPointClass, GetActorLocation(), GetActorRotation(), SP);
 		//ControlPoint->SetActorLocationAndRotation(GetActorLocation(), GetActorRotation());
-		if(!ControlPoint)
+		if (!ControlPoint)
 		{
 			return nullptr;
 		}
@@ -57,4 +56,3 @@ AControlPoint* AControlPointSpawner::GetControlPoint()
 {
 	return ControlPoint;
 }
-

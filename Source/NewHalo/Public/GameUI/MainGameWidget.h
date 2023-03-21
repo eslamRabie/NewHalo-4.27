@@ -7,6 +7,7 @@
 #include "Player/NHPlayerState.h"
 #include "MainGameWidget.generated.h"
 
+class ANHControlGameState;
 class UNotificationWidget;
 class UProgressBar;
 class UTextBlock;
@@ -21,10 +22,9 @@ class NEWHALO_API UMainGameWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-
 	void UpdateHealth(float HealthPercentage);
 
-	
+	void SetWinning(ENHTeams WinnerTeamm);
 	///////////////
 	///
 	///Inventory Slots
@@ -34,7 +34,7 @@ public:
 
 	void SetInventoryItemCount(int32 Count, int32 SlotIndex);
 
-	
+
 	//////////////
 	///
 	/// Main Weapons Slots
@@ -47,7 +47,7 @@ public:
 	void SetSmallWeaponIcon(UTexture2D* Icon);
 
 	void SetWeapon1Ammo(FVector NewAmmo);
-	
+
 	void SetWeapon2Ammo(FVector NewAmmo);
 
 	void SetSmallWeaponAmmo(FVector NewAmmo);
@@ -63,25 +63,28 @@ public:
 	////
 	/// Show Timer
 	/// 
-	void ShowTimer(int32 Time);
+	void ShowTimer(float Time);
 
 	/// Notifykill
 	///
 	void NotifyKill(FString Message);
-	
-	
+
+	// Kills Deaths
+	void UpdateKills(int32 Kills);
+
+	void UpdateDeaths(int32 Deaths);
+
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
 	void UpdateTime();
-	
+	void SetControlPointTime(float Time);
 private:
-
-
 	UPROPERTY(meta=(BindWidget))
-	UNotificationWidget* NotificationWidget; 
-	
+	UNotificationWidget* NotificationWidget;
+
 	UPROPERTY(meta=(BindWidget))
 	UUniformGridPanel* Inventory;
 
@@ -90,7 +93,17 @@ private:
 
 	UPROPERTY(meta=(BindWidget))
 	UImage* ControllerTeam;
-	
+	UPROPERTY(meta=(BindWidget))
+	UTextBlock* ControlPointTime;
+
+	UPROPERTY()
+	ANHControlGameState* GS;
+
+	ENHTeams ControlTeam;
+
+	UPROPERTY()
+	ANHPlayerState* PS;
+
 	UPROPERTY()
 	TArray<UImage*> Slots;
 
@@ -116,9 +129,18 @@ private:
 
 	UPROPERTY(meta=(bindWidget))
 	UTextBlock* TimerText;
-	
+
+	UPROPERTY(meta=(bindWidget))
+	UTextBlock* EndGameText;
+
+	UPROPERTY(meta=(bindWidget))
+	UTextBlock* KillsText;
+	UPROPERTY(meta=(bindWidget))
+	UTextBlock* DeathsText;
+
 	FTimerHandle TimerHandle;
 
-	int32 CurrentTime;
-	
+	float CurrentTime;
+
+	float TickWaitingTime;
 };

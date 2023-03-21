@@ -28,122 +28,118 @@ class ANewHaloCharacter : public ACharacter
 public:
 	ANewHaloCharacter();
 
+	virtual void Tick(float DeltaSeconds) override;
+
 protected:
 	virtual void BeginPlay() override;
-
-protected:
-	/** Handles moving forward/backward */
 	void MoveForward(float Val);
-	/** Handles stafing movement, left and right */
 	void MoveRight(float Val);
-	/**
-	 * Called via input to turn at a given rate.
-	 * @param Rate	This is a normalized rate, i.e. 1.0 means 100% of desired turn rate
-	 */
 	void TurnAtRate(float Rate);
-	/**
-	 * Called via input to turn look up/down at a given rate.
-	 * @param Rate	This is a normalized rate, i.e. 1.0 means 100% of desired turn rate
-	 */
 	void LookUpAtRate(float Rate);
-
-	// APawn interface
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
-	// End of APawn interface
 
+	UFUNCTION(Server, Reliable)
+	void ServerTestRPC();
+
+	UFUNCTION(Client, Reliable)
+	void ClientTestRPC();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastTestRPC();
+	
+	
 public:
-	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	virtual void ApplyDamage(float Damage, ANHPlayerController* Player, AActor* DamageCauser);
 
 	UFUNCTION(BlueprintCallable)
-	virtual void UpdateHealth(float Percent); 
+	FVector GetMuzzleLocation();
+
+	UFUNCTION(BlueprintCallable)
+	bool IsIsJumping() const;
+
+	UFUNCTION(BlueprintCallable)
+	bool IsIsDoubleJumping() const;
+
+	UFUNCTION(BlueprintCallable)
+	bool IsIsHoldingAWeapon() const;
+
+	UFUNCTION(BlueprintCallable)
+	bool IsIsCrouching() const;
+
+	UFUNCTION(BlueprintCallable)
+	bool IsIsSliding() const;
+
+	UFUNCTION(BlueprintCallable)
+	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
+
+	UFUNCTION(BlueprintCallable)
+	int32 GetCurrentWeaponSelection() const;
+
+	UFUNCTION(BlueprintCallable)
+	int32 GetCurrentActionSelection() const;
+
+	UFUNCTION(BlueprintCallable)
+	void SetCurrentActionSelection(int32 InCurrentActionSelection);
+
+	UFUNCTION()
+	void UpdateWeaponsAmmoHUD(AWeaponBase* Weapon);
+
+	UFUNCTION()
+	void UpdateWeaponsIconHUD(AWeaponBase* Weapon);
 
 protected:
+
+
+	/////
+	/// Pickups
 	///
-	/// Combat
-	///
-	///	
-	/** Fires a projectile. */
-	UFUNCTION(BlueprintCallable)
-	virtual void OnFire();
-
-	UFUNCTION(BlueprintCallable)
-	virtual void OnStopFire();
-	
-	UFUNCTION(BlueprintCallable)
-	virtual void OnCrouch();
-
-	UFUNCTION(BlueprintCallable)
-	virtual void Slide();
-
-	UFUNCTION(BlueprintCallable)
-	virtual void StopSlide();
-
-	UFUNCTION(BlueprintCallable)
-	virtual void ResetSlide();
-	
-	UFUNCTION(BlueprintCallable)
-	virtual void Reload();
-
-	UFUNCTION(BlueprintCallable)
-	virtual void Pick();
-	
-	UFUNCTION(BlueprintCallable)
-	virtual void SwitchWeapon(float WeaponIndex);
-	
-
-
-/////
-/// Pickups
-///
 	UFUNCTION()
 	void OnOverLapBegin(AActor* This, AActor* Other);
 	UFUNCTION()
 	void OnOverlapEnd(AActor* This, AActor* Other);
+	UFUNCTION()
+	void TryGetPSAndPC();
+	
+	void UpdateOverHeadWidget();
 
-
+	
+	
 
 public:
-	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseTurnRate;
-	/** Base look up/down rate, in deg/sec. Other scaling may affect final rate. */
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseLookUpRate;
-	
-	UFUNCTION(BlueprintCallable)
-	FVector GetMuzzleLocation()
-	{
-		return FP_MuzzleLocation->GetComponentLocation();
-	}
 
 protected:
-
 	UPROPERTY()
 	ANHPlayerController* PC;
-
 	UPROPERTY()
 	ANewHaloHUD* PlayerHUD;
+	UPROPERTY()
+	ANHPlayerState* PS;
 
-	/** Location on gun mesh where projectiles should spawn. */
+	FTimerHandle PCTimerHandle;
+	FTimerHandle PSTimerHandle;
+
+	
+	
+	
 	UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
 	USceneComponent* FP_MuzzleLocation;
-	/** First person camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess))
 	UCameraComponent* FirstPersonCameraComponent;
-	//////////
-	/// 3rd Person Setup
-	/// 
-	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
-	USkeletalMeshComponent* Mesh3P;
-public:
-	USkeletalMeshComponent* GetMesh3P() const;
-protected:
+	
+
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Inventory)
 	UInventory* InventoryComponent;
 
-	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess))
+	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess), Replicated)
 	UPlayerOverheadStatus* OverHeadWidget;
-	
+
 	///
 	/// Weapons
 	///
@@ -167,77 +163,118 @@ protected:
 
 
 	// pickups
-	
+
 	UPROPERTY()
 	TArray<AActor*> OverlappingActorsList;
-	UPROPERTY()
-	int32 CurrentActionSelection;
 
+	
 	// Weapon
 	UPROPERTY()
 	AWeaponBase* CurrentWeapon;
 	UPROPERTY()
 	int32 CurrentWeaponSelection;
+	UPROPERTY()
+	int32 CurrentActionSelection;
 
 	// Animation
-
+	bool bCanSlide;
 	bool bIsJumping;
 	bool bIsDoubleJumping;
 	bool bIsCrouching;
 	bool bIsSliding;
-public:
-	UFUNCTION(BlueprintCallable)
-	bool IsIsJumping() const;
-	UFUNCTION(BlueprintCallable)
-	bool IsIsDoubleJumping() const;
-	UFUNCTION(BlueprintCallable)
-	bool IsIsHoldingAWeapon() const;
-	UFUNCTION(BlueprintCallable)
-	bool IsIsCrouching() const;
-	UFUNCTION(BlueprintCallable)
-	bool IsIsSliding() const;
+
 private:
 	FTimerHandle SlidingTimerHandle;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Sliding)
 	float SlidingSpeed;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Sliding)
 	float SlidingTime;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Sliding)
 	float SlidingFriction;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Sliding)
 	float CapsuleHalfHeight;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Jumping)
 	float JumpFactor;
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Weapon)
+
+	UPROPERTY(BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Weapon)
 	bool bIsHoldingAWeapon;
-	
-	bool bCanSlide;
-	
 
+	//FTimerHandle PCTimerHandle;
 
-public:
-	/** Returns FirstPersonCameraComponent subobject **/
-	UFUNCTION(BlueprintCallable)
-	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
-	UFUNCTION(BlueprintCallable)
-	int32 GetCurrentWeaponSelection() const;
-	UFUNCTION(BlueprintCallable)
-	int32 GetCurrentActionSelection() const;
-	UFUNCTION(BlueprintCallable)
-	void SetCurrentActionSelection(int32 InCurrentActionSelection);
+protected:
+	// Server Callbacks
+	// Clean
 
-	UFUNCTION()
-	void UpdateWeaponsAmmoHUD(AWeaponBase* Weapon);
-	UFUNCTION()
-	void UpdateWeaponsIconHUD(AWeaponBase* Weapon);
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	virtual void Server_Fire();
+	UFUNCTION(BlueprintCallable, Client, Reliable)
+	virtual void Client_OnFire();
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	virtual void Multicast_OnFire();
 
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	virtual void Server_StopFire();
+	UFUNCTION(BlueprintCallable, Client, Reliable)
+	virtual void Client_OnStopFire();
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	virtual void Multicast_OnStopFire();
 
-/**
- * The Network Section,
- *	All Network functions calls can be found here
- ***/
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	virtual void Server_Crouch();
+	UFUNCTION(BlueprintCallable, Client, Reliable)
+	virtual void Client_OnCrouch();
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	virtual void Multicast_OnCrouch();
 
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	virtual void Server_Slide();
+	UFUNCTION(BlueprintCallable, Client, Reliable)
+	virtual void Client_OnSlide();
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	virtual void Multicast_OnSlide();
+
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	virtual void Server_StopSlide();
+	UFUNCTION(BlueprintCallable, Client, Reliable)
+	virtual void Client_OnStopSlide();
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	virtual void Multicast_OnStopSlide();
+
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	virtual void Server_ResetSlide();
+	UFUNCTION(BlueprintCallable, Client, Reliable)
+	virtual void Client_OnResetSlide();
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	virtual void Multicast_OnResetSlide();
+
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	virtual void Server_Reload();
+	UFUNCTION(BlueprintCallable, Client, Reliable)
+	virtual void Client_OnReload();
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	virtual void Multicast_OnReload();
+
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	virtual void Server_Pick();
+	UFUNCTION(BlueprintCallable, Client, Reliable)
+	virtual void Client_OnPick(AActor* ActionActor);
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	virtual void Multicast_OnPick(AActor* ActionActor);
+
+	UFUNCTION(BlueprintCallable, Server, Reliable)
+	virtual void Server_SwitchWeapon(float WeaponIndex);
+	UFUNCTION(BlueprintCallable, Client, Reliable)
+	virtual void Client_OnSwitchWeapon(float WeaponIndex);
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+	virtual void Multicast_OnSwitchWeapon(float WeaponIndex);
 	
 };
+
+
 
 

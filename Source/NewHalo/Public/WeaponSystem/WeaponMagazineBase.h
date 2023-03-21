@@ -12,20 +12,20 @@ UCLASS()
 class NEWHALO_API AWeaponMagazineBase : public AActor
 {
 	GENERATED_BODY()
-	
-	public:	
+
+public:
 	// Sets default values for this actor's properties
 	AWeaponMagazineBase();
 
-	protected:
+protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	public:	
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	public:
+public:
 	UFUNCTION()
 	virtual void Reload();
 
@@ -33,7 +33,7 @@ class NEWHALO_API AWeaponMagazineBase : public AActor
 
 	virtual class AWeaponProjectileBase* GetProjectile(FVector Location, FRotator Rotation);
 
-	protected:
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Magazine)
 	int32 MaxAmmo;
 
@@ -43,7 +43,7 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Magazine)
 	int32 AmmoPack;
-	
+
 public:
 	UFUNCTION(BlueprintCallable)
 	int32 GetCurrentAmmoCount() const;
@@ -51,19 +51,16 @@ public:
 	int32 GetAmmoPack() const;
 	UFUNCTION(BlueprintCallable)
 	int32 GetMaxAmmo() const;
-	
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	USceneComponent* SceneComponent;
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta=(AllowPrivateAccess))
 	UStaticMeshComponent* MagazineMeshComponent;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Magazine)
 	TSubclassOf<class AWeaponProjectileBase> ProjectileClass;
 
 	// todo create a pool of projectiles;
 	TArray<AWeaponProjectileBase*> MagazineAmmo;
-
 };
-
-

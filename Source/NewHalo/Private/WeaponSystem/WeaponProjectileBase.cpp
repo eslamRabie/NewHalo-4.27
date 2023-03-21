@@ -6,6 +6,8 @@
 #include "Components/SphereComponent.h"
 #include "Player/NHPlayerState.h"
 #include "Player/NewHaloCharacter.h"
+#include "Player/NHPlayerController.h"
+#include "Game/NewHaloGameMode.h"
 
 
 // Sets default values
@@ -15,7 +17,8 @@ AWeaponProjectileBase::AWeaponProjectileBase()
 	CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComp"));
 	CollisionComp->InitSphereRadius(5.0f);
 	CollisionComp->BodyInstance.SetCollisionProfileName("Projectile");
-	CollisionComp->OnComponentHit.AddDynamic(this, &AWeaponProjectileBase::OnHit);		// set up a notification for when this component hits something blocking
+	CollisionComp->OnComponentHit.AddDynamic(this, &AWeaponProjectileBase::OnHit);
+	// set up a notification for when this component hits something blocking
 
 	// Players can't walk on it
 	CollisionComp->SetWalkableSlopeOverride(FWalkableSlopeOverride(WalkableSlope_Unwalkable, 0.f));
@@ -37,24 +40,21 @@ AWeaponProjectileBase::AWeaponProjectileBase()
 
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMesh"));
 	MeshComponent->SetupAttachment(RootComponent);
-	
+
 	//
 	bReplicates = true;
-
 }
 
 // Called when the game starts or when spawned
 void AWeaponProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 // Called every frame
 void AWeaponProjectileBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
 void AWeaponProjectileBase::OnShoot(ANewHaloCharacter* InOwnerCharacter, float InRange, float InDamage)
@@ -62,37 +62,45 @@ void AWeaponProjectileBase::OnShoot(ANewHaloCharacter* InOwnerCharacter, float I
 	Range = InRange;
 	DamageFactor = InDamage;
 	OwnerCharacter = InOwnerCharacter;
+	auto TimeInSecond = Range / ProjectileMovement->InitialSpeed;
+	SetLifeSpan(TimeInSecond);
 }
 
-void AWeaponProjectileBase::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-	FVector NormalImpulse, const FHitResult& Hit)
+void AWeaponProjectileBase::OnHit_Implementation(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+                                  FVector NormalImpulse, const FHitResult& Hit)
 {
-	if(OtherActor && OtherActor->IsA(ANewHaloCharacter::StaticClass()))
+
+	auto GM = GetWorld()->GetAuthGameMode<ANewHaloGameMode>();
+	if(!GM) return;
+	
+	if (OtherActor && OtherActor->IsA(ANewHaloCharacter::StaticClass()))
 	{
 		auto OtherCharacter = Cast<ANewHaloCharacter>(OtherActor);
-		if(OtherCharacter && OtherCharacter != OwnerCharacter)
+		if (OtherCharacter && OtherCharacter != OwnerCharacter)
 		{
-			FPointDamageEvent PointDamageEvent(DamageFactor, Hit, GetActorLocation(), UDamageType::StaticClass());
 			auto HitPS = OtherCharacter->GetPlayerState<ANHPlayerState>();
 			auto OwnerPS = OwnerCharacter->GetPlayerState<ANHPlayerState>();
-			if(HitPS && OwnerPS)
+			if (HitPS && OwnerPS)
 			{
-				if(HitPS->GetPlayerTeam() != OwnerPS->GetPlayerTeam())
+				if (HitPS->GetPlayerTeam() != OwnerPS->GetPlayerTeam())
 				{
-					OtherActor->TakeDamage(DamageFactor, PointDamageEvent, OwnerCharacter->GetNetOwningPlayer()->GetPlayerController(GetWorld()), this);
+					GM->ApplyDamageToPlayer(OwnerPS, HitPS, DamageFactor);
 				}
 				else
 				{
-					OtherActor->TakeDamage(0, PointDamageEvent, OwnerCharacter->GetNetOwningPlayer()->GetPlayerController(GetWorld()), this);
+					//OtherCharacter->ApplyDamage(0, PC, this);
 				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("OwnerPS or HitPS is null in: %s"), *GetName())
 			}
 		}
 	}
-	// Only add impulse and destroy projectile if we hit a physics
+		// Only add impulse and destroy projectile if we hit a physics
 	else if (OtherActor && (OtherActor != this) && (OtherComp != nullptr) && OtherComp->IsSimulatingPhysics())
 	{
 		OtherComp->AddImpulseAtLocation(GetVelocity() * 100.0f, GetActorLocation());
 	}
 	Destroy();
 }
-

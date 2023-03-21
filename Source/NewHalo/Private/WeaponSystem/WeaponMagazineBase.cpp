@@ -9,7 +9,8 @@ AWeaponMagazineBase::AWeaponMagazineBase()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	
+	bReplicates = true;
+
 	MagazineMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MagMesh"));
 	MagazineMeshComponent->SetupAttachment(RootComponent);
 }
@@ -29,7 +30,7 @@ void AWeaponMagazineBase::Tick(float DeltaTime)
 
 void AWeaponMagazineBase::Reload()
 {
-	auto ReloadAmount = FMath::Min(MaxAmmo - CurrentAmmoCount, AmmoPack); 
+	auto ReloadAmount = FMath::Min(MaxAmmo - CurrentAmmoCount, AmmoPack);
 	AmmoPack -= ReloadAmount;
 	CurrentAmmoCount += ReloadAmount;
 }
@@ -41,12 +42,13 @@ bool AWeaponMagazineBase::IsEmpty()
 
 AWeaponProjectileBase* AWeaponMagazineBase::GetProjectile(FVector Location, FRotator Rotation)
 {
-	if(CurrentAmmoCount > 0)
+	if (CurrentAmmoCount > 0)
 	{
 		CurrentAmmoCount--;
 		FActorSpawnParameters ActorSpawnParams;
-		ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-		return GetWorld()->SpawnActor<AWeaponProjectileBase>(ProjectileClass, Location, Rotation, ActorSpawnParams);
+		ActorSpawnParams.SpawnCollisionHandlingOverride =
+			ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		return GetWorld()? GetWorld()->SpawnActor<AWeaponProjectileBase>(ProjectileClass, Location, Rotation, ActorSpawnParams): nullptr;
 	}
 	else
 	{
@@ -69,4 +71,3 @@ int32 AWeaponMagazineBase::GetAmmoPack() const
 {
 	return AmmoPack;
 }
-

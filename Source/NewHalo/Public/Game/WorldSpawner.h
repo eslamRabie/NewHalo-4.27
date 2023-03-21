@@ -10,8 +10,8 @@ UCLASS()
 class NEWHALO_API AWorldSpawner : public AActor
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 	// Sets default values for this actor's properties
 	AWorldSpawner();
 
@@ -19,12 +19,9 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	virtual  void Spawn();
+	virtual void Spawn();
 	
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-	
+
 
 private:
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, meta=(AllowPrivateAccess))
@@ -35,13 +32,12 @@ private:
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, meta=(AllowPrivateAccess))
 	FVector2D SpawnTimeRange;
-	
+
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, meta=(AllowPrivateAccess))
 	FIntPoint SpawnCountRange;
-	
-	
+
+
 	int32 SpawnCount;
 
 	FTimerHandle TimerHandle;
-	
 };

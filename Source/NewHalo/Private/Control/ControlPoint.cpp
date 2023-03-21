@@ -7,7 +7,6 @@
 #include "Player/NHPlayerState.h"
 #include "DrawDebugHelpers.h"
 #include "Net/UnrealNetwork.h"
-#include "Components/BrushComponent.h"
 #include "Game/NewHaloGameMode.h"
 #include "Game/NHControlGameMode.h"
 #include "Kismet/GameplayStatics.h"
@@ -16,29 +15,30 @@ AControlPoint::AControlPoint()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
-	
+
 	BlueTeamCount = 0;
 	RedTeamCount = 0;
 	RateFactor = 0.1;
-	MaxTime = 5*60;
+	MaxTime = 5 * 60;
 	bIsControlled = false;
 	ControlTeam = ENHTeams::None;
 
 	ControlPointMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ControlPointMesh"));
 	ControlPointMesh->SetupAttachment(RootComponent);
+	bIsGameOver = false;
 }
 
 void AControlPoint::BeginPlay()
 {
 	Super::BeginPlay();
-	auto GM = GetWorld()->GetAuthGameMode<ANHControlGameMode>();
-	if(!GM)
+	auto NHCintrolGameMode = GetWorld()->GetAuthGameMode<ANHControlGameMode>();
+	if (!NHCintrolGameMode)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Cant Get Game Mode"))
+		UE_LOG(LogTemp, Error, TEXT("Cant Get Game Mode in %s"), *GetName())
 	}
 	else
 	{
-		OnWinDelegate.BindUObject(GM, &ANewHaloGameMode::SetWinner);
+		OnWinDelegate.BindUObject(NHCintrolGameMode, &ANewHaloGameMode::SetWinner);
 	}
 	SetActorHiddenInGame(false);
 	RootComponent->SetHiddenInGame(true, true);
@@ -55,55 +55,59 @@ void AControlPoint::Tick(float DeltaSeconds)
 	FColor Color;
 	for (auto Player : ConnectedPlayersList)
 	{
+		if(!Player) continue;
+		
 		auto PS = Player->GetPlayerState<ANHPlayerState>();
-		if(PS)
+		if (PS)
 		{
-			Color = PS->GetPlayerTeam() == ENHTeams::BlueTeam? Color = FColor::Blue : Color = FColor::Red;
+			Color = PS->GetPlayerTeam() == ENHTeams::BlueTeam ? Color = FColor::Blue : Color = FColor::Red;
 			DrawDebugLine(GetWorld(), GetActorLocation(), Player->GetActorLocation(),
-				Color, false, -1, 0, 2);
+			              Color, false, -1, 0, 2);
 		}
 	}
-	if(GetNetMode() < ENetMode::NM_Client)
+	if (GetWorld() && GetWorld()->GetAuthGameMode())
 	{
-		if(bIsControlled)
+		if (bIsControlled)
 		{
 			CurrentTime -= (DeltaSeconds * Rate);
-			if(CurrentTime <= 0)
+			if (CurrentTime <= 0 && !bIsGameOver)
 			{
-				OnWinDelegate.Execute(ControlTeam);
+				bIsGameOver = OnWinDelegate.ExecuteIfBound(ControlTeam);
+				
 			}
 		}
 		else
+		{
 			CurrentTime = MaxTime;
+		}
 	}
-
-	
 }
 
-void AControlPoint::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const {
+void AControlPoint::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	// This actually takes care of replicating the Variable
-	DOREPLIFETIME(AControlPoint, ControlPointMesh);
 	DOREPLIFETIME(AControlPoint, CurrentTime);
 	DOREPLIFETIME(AControlPoint, ControlTeam);
 }
 
 void AControlPoint::OnOverLapEnd(AActor* ThisActor, AActor* OtherActor)
 {
-	if(GetNetMode() < ENetMode::NM_Client && HasAuthority())
+	if(!OtherActor) return;
+	if (GetWorld() && GetWorld()->GetAuthGameMode())
 	{
 		auto Player = Cast<ANewHaloCharacter>(OtherActor);
-		if(Player)
+		if (Player)
 		{
 			auto PS = Player->GetPlayerState<ANHPlayerState>();
-			if(PS)
+			if (PS)
 			{
 				ConnectedPlayersList.Remove(Player);
-				if(PS->GetPlayerTeam() == ENHTeams::BlueTeam)
+				if (PS->GetPlayerTeam() == ENHTeams::BlueTeam)
 				{
 					BlueTeamCount--;
 				}
-				if(PS->GetPlayerTeam() == ENHTeams::RedTeam)
+				if (PS->GetPlayerTeam() == ENHTeams::RedTeam)
 				{
 					RedTeamCount--;
 				}
@@ -125,20 +129,21 @@ float AControlPoint::GetMaxTime() const
 
 void AControlPoint::OnOverLapBegin(AActor* ThisActor, AActor* OtherActor)
 {
-	if(GetNetMode() < ENetMode::NM_Client && HasAuthority())
+	if(!OtherActor) return;
+	if (GetWorld() && GetWorld()->GetAuthGameMode())
 	{
 		auto Player = Cast<ANewHaloCharacter>(OtherActor);
-		if(Player)
+		if (Player)
 		{
 			auto PS = Player->GetPlayerState<ANHPlayerState>();
-			if(PS)
+			if (PS)
 			{
 				ConnectedPlayersList.Add(Player);
-				if(PS->GetPlayerTeam() == ENHTeams::BlueTeam)
+				if (PS->GetPlayerTeam() == ENHTeams::BlueTeam)
 				{
 					BlueTeamCount++;
 				}
-				if(PS->GetPlayerTeam() == ENHTeams::RedTeam)
+				if (PS->GetPlayerTeam() == ENHTeams::RedTeam)
 				{
 					RedTeamCount++;
 				}
@@ -158,16 +163,22 @@ ENHTeams AControlPoint::GetControlTeam() const
 	return ControlTeam;
 }
 
+void AControlPoint::RegisterGameEndEvent(ANHControlGameState* GameState, FName CallbackName)
+{
+	if(!GameState) return;
+	OnWinDelegate.BindUFunction(GameState, CallbackName);
+}
+
 void AControlPoint::UpdateRate()
 {
-	if(GetNetMode() < ENetMode::NM_Client && HasAuthority())
+	if (GetWorld() && GetWorld()->GetAuthGameMode())
 	{
-		if(RedTeamCount == BlueTeamCount)
+		if (RedTeamCount == BlueTeamCount)
 		{
 			ControlTeam = ENHTeams::None;
 			bIsControlled = false;
 		}
-		else if(RedTeamCount > BlueTeamCount)
+		else if (RedTeamCount > BlueTeamCount)
 		{
 			ControlTeam = ENHTeams::RedTeam;
 			bIsControlled = true;
@@ -177,6 +188,6 @@ void AControlPoint::UpdateRate()
 			ControlTeam = ENHTeams::BlueTeam;
 			bIsControlled = true;
 		}
-		Rate = RateFactor * FMath::Abs(BlueTeamCount - RedTeamCount);
+		Rate = 1 + (RateFactor * FMath::Abs(BlueTeamCount - RedTeamCount));
 	}
 }

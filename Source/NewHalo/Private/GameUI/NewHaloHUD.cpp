@@ -12,7 +12,8 @@
 ANewHaloHUD::ANewHaloHUD()
 {
 	// Set the crosshair texture
-	static ConstructorHelpers::FObjectFinder<UTexture2D> CrosshairTexObj(TEXT("/Game/FirstPerson/Textures/FirstPersonCrosshair"));
+	static ConstructorHelpers::FObjectFinder<UTexture2D> CrosshairTexObj(
+		TEXT("/Game/FirstPerson/Textures/FirstPersonCrosshair"));
 	CrosshairTex = CrosshairTexObj.Object;
 
 	///
@@ -21,11 +22,6 @@ ANewHaloHUD::ANewHaloHUD()
 }
 
 
-
-void ANewHaloHUD::UpdateHealth(float HealthPercentage)
-{
-	MainGameWidget->UpdateHealth(HealthPercentage);
-}
 
 void ANewHaloHUD::SetInventoryItemIcon(UTexture2D* Icon, int32 SlotIndex)
 {
@@ -67,13 +63,14 @@ void ANewHaloHUD::SetSmallWeaponAmmo(FVector NewAmmo)
 	MainGameWidget->SetSmallWeaponAmmo(NewAmmo);
 }
 
-void ANewHaloHUD::SetControlPointTeam(ENHTeams Team)
-{
-	MainGameWidget->SetControlPointTeam(Team);
-}
 
 void ANewHaloHUD::SetStartGameTimer(float Time)
 {
+	if(!MainGameWidget)
+	{
+		UE_LOG(LogTemp, Error,TEXT("Cant Get MainGameWidget in ANewHaloHUD::SetStartGameTimer"));
+		return;
+	}
 	MainGameWidget->ShowTimer(Time);
 }
 
@@ -84,7 +81,7 @@ void ANewHaloHUD::SetEndGameTimer(float Time)
 
 void ANewHaloHUD::ShowWinner(ENHTeams WinnerTeam)
 {
-	//todo
+	MainGameWidget->SetWinning(WinnerTeam);
 }
 
 void ANewHaloHUD::NotifyKill(FString KillerName, FString TargetName)
@@ -95,12 +92,18 @@ void ANewHaloHUD::NotifyKill(FString KillerName, FString TargetName)
 void ANewHaloHUD::BeginPlay()
 {
 	Super::BeginPlay();
+}
+
+void ANewHaloHUD::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
 	CreateMainGameWidget();
+	
 }
 
 void ANewHaloHUD::CreateMainGameWidget()
 {
-	if(!MainGameWidgetClass)
+	if (!MainGameWidgetClass)
 	{
 		UE_LOG(LogTemp, Error, TEXT("MainGameWidgetClass is null in %S"), *GetName());
 		return;
@@ -108,7 +111,7 @@ void ANewHaloHUD::CreateMainGameWidget()
 
 	MainGameWidget = CreateWidget<UMainGameWidget>(GetWorld(), MainGameWidgetClass);
 
-	if(!MainGameWidget)
+	if (!MainGameWidget)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Cant Create MAinGameWidget in ANHHUD in %S"), *GetName());
 	}

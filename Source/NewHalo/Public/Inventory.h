@@ -9,12 +9,12 @@
 #include "Inventory.generated.h"
 
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class NEWHALO_API UInventory : public UActorComponent
 {
 	GENERATED_BODY()
 
-public:	
+public:
 	// Sets default values for this component's properties
 	UInventory();
 
@@ -22,20 +22,19 @@ protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
-public:	
+public:
 	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
+	                           FActorComponentTickFunction* ThisTickFunction) override;
 
 	AEquipment* GetEquipmentInSlot(int32 SlotIndex);
 
 	void AddEquipmentInFirstEmptySlot(AEquipment* Equipment);
 
 	void DropEquipmentFromSlot(int32 SlotIndex);
-	
-	
+
+
 protected:
-	
-	
 private:
 	int32 MaxItemsCount;
 
@@ -44,5 +43,4 @@ private:
 
 	UPROPERTY()
 	ANewHaloHUD* HUD;
-	
 };

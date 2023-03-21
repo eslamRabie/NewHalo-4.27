@@ -14,10 +14,12 @@
 // Sets default values
 AWeaponBase::AWeaponBase()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;\
+	PrimaryActorTick.bCanEverTick = true;
+	bReplicates = true;
+
+
 	bCanFire = true;
-	
+
 	SceneComponent = CreateDefaultSubobject<USphereComponent>(TEXT("DefaultComponent"));
 	RootComponent = SceneComponent;
 
@@ -25,7 +27,7 @@ AWeaponBase::AWeaponBase()
 
 	MagazineSocketName = TEXT("MagSocket");
 	MuzzleSocketName = TEXT("MuzzleSocket");
-	
+
 	WeaponSkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
 	WeaponSkeletalMeshComponent->SetupAttachment(RootComponent);
 
@@ -41,8 +43,13 @@ AWeaponBase::AWeaponBase()
 void AWeaponBase::BeginPlay()
 {
 	Super::BeginPlay();
-	WeaponMagazine = GetWorld()->SpawnActor<AWeaponMagazineBase>(MagazineClass, FVector::ZeroVector, FRotator::ZeroRotator);
-	WeaponMagazine->AttachToComponent(WeaponSkeletalMeshComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale, MagazineSocketName);	
+	if(GetWorld())
+	{
+		WeaponMagazine = GetWorld()->SpawnActor<AWeaponMagazineBase>(MagazineClass, FVector::ZeroVector,
+																FRotator::ZeroRotator);
+		WeaponMagazine->AttachToComponent(WeaponSkeletalMeshComponent,
+									FAttachmentTransformRules::SnapToTargetNotIncludingScale, MagazineSocketName);
+	}
 	ParticleSystemComponent->Deactivate();
 	ParticleSystemComponent->Template = FiringEffect;
 }
@@ -55,30 +62,30 @@ void AWeaponBase::Tick(float DeltaTime)
 
 void AWeaponBase::Fire(FVector Location, FRotator Rotation)
 {
-	if(!bCanFire)
+	if (!bCanFire)
 	{
 		return;
 	}
-	if(!WeaponMagazine)
+	if (!WeaponMagazine)
 	{
 		// Shouldn't exist
 		return;
 	}
-	if(WeaponMagazine->IsEmpty())
+	if (WeaponMagazine->IsEmpty())
 	{
 		// Play Empty Magazine Sound
-		if(EmptyMagazineSound)
+		if (EmptyMagazineSound)
 		{
 			UGameplayStatics::PlaySoundAtLocation(this, EmptyMagazineSound, GetActorLocation());
 		}
 		return;
 	}
 
-	
+
 	auto Projectile = WeaponMagazine->GetProjectile(WeaponSkeletalMeshComponent->GetSocketLocation(MuzzleSocketName),
-		WeaponSkeletalMeshComponent->GetSocketRotation(MuzzleSocketName));
-	
-	if(Projectile)
+	                                                WeaponSkeletalMeshComponent->GetSocketRotation(MuzzleSocketName));
+
+	if (Projectile)
 	{
 		bCanFire = false;
 		ParticleSystemComponent->Activate();
@@ -107,8 +114,9 @@ void AWeaponBase::Fire(FVector Location, FRotator Rotation)
 void AWeaponBase::ShootingCoolDown()
 {
 	bCanFire = true;
-	ParticleSystemComponent->Deactivate();
-	if(bIsAutomatic && !bStopFiring)
+	if(ParticleSystemComponent)
+		ParticleSystemComponent->Deactivate();
+	if (bIsAutomatic && !bStopFiring && OwnerPlayer)
 	{
 		Fire(OwnerPlayer->GetMuzzleLocation(), OwnerPlayer->GetActorRotation());
 	}
@@ -119,7 +127,7 @@ void AWeaponBase::Reload()
 {
 	WeaponMagazine->Reload();
 
-	if(ReloadAnimation)
+	if (ReloadAnimation && OwnerPlayer)
 	{
 		UAnimInstance* AnimInstance = OwnerPlayer->GetMesh()->GetAnimInstance();
 		if (AnimInstance != nullptr)
@@ -127,7 +135,7 @@ void AWeaponBase::Reload()
 			AnimInstance->Montage_Play(ReloadAnimation, 1.f);
 		}
 	}
-	if(ReloadSound)
+	if (ReloadSound)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, ReloadSound, GetActorLocation());
 	}
@@ -141,24 +149,27 @@ FVector AWeaponBase::GetAmmo()
 void AWeaponBase::Pick_Implementation(ANewHaloCharacter* PickingPlayer, int Amount)
 {
 	IPickable::Pick_Implementation(PickingPlayer, Amount);
-	OwnerPlayer = PickingPlayer;
+	if(OwnerPlayer)
+		OwnerPlayer = PickingPlayer;
 }
 
 void AWeaponBase::Drop_Implementation(int Amount)
 {
 	IPickable::Drop_Implementation(Amount);
-	OwnerPlayer = nullptr;
+	if(OwnerPlayer)
+		OwnerPlayer = nullptr;
 	UnEquip_Implementation();
 }
 
 void AWeaponBase::Equip_Implementation(FName SocketName)
 {
 	IEquippable::Equip_Implementation(SocketName);
-	if(AttachedSocketName == TEXT("None"))
+	if (AttachedSocketName == TEXT("None"))
 	{
 		AttachedSocketName = SocketName;
 	}
-	AttachToComponent(OwnerPlayer->GetMesh3P(), FAttachmentTransformRules::SnapToTargetIncludingScale, SocketName);
+	if(OwnerPlayer)
+		AttachToComponent(OwnerPlayer->GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, SocketName);
 }
 
 void AWeaponBase::UnEquip_Implementation()
@@ -212,4 +223,3 @@ void AWeaponBase::SetAttachedSocketName(FName InAttachedSocketName)
 {
 	this->AttachedSocketName = InAttachedSocketName;
 }
-

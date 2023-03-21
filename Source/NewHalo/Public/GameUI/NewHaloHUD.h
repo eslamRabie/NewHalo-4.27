@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once 
+#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
@@ -16,26 +16,20 @@ class ANewHaloHUD : public AHUD
 public:
 	ANewHaloHUD();
 
-//////////////
-///
-///
-	
-	void UpdateHealth(float HealthPercentage);
-	
 
-///////////////
-///
-///Inventory Slots
-///
+	///////////////
+	///
+	///Inventory Slots
+	///
 	void SetInventoryItemIcon(UTexture2D* Icon, int32 SlotIndex);
 
 	void SetInventoryItemCount(int32 Count, int32 SlotIndex);
 
 
-//////////////
-///
-/// Main Weapons Slots
-///
+	//////////////
+	///
+	/// Main Weapons Slots
+	///
 
 	void SetWeapon1Icon(UTexture2D* Icon);
 
@@ -44,22 +38,16 @@ public:
 	void SetSmallWeaponIcon(UTexture2D* Icon);
 
 	void SetWeapon1Ammo(FVector NewAmmo);
-	
+
 	void SetWeapon2Ammo(FVector NewAmmo);
 
 	void SetSmallWeaponAmmo(FVector NewAmmo);
 
-/////////////////
-///
-/// Control Point
-///
-
-	void SetControlPointTeam(ENHTeams Team);
 	
 
-///
-///Start/End Game
-///
+	///
+	///Start/End Game
+	///
 
 	void SetStartGameTimer(float Time);
 
@@ -68,12 +56,13 @@ public:
 	void ShowWinner(ENHTeams WinnerTeam);
 
 
-// Notifications
+	// Notifications
 
 	void NotifyKill(FString KillerName, FString TargetName);
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void PostInitializeComponents() override;
 
 private:
 	void CreateMainGameWidget();
@@ -89,4 +78,3 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=NHHUD)
 	UMainGameWidget* MainGameWidget;
 };
-

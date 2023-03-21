@@ -8,6 +8,10 @@ public class NewHalo : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "SlateCore", "UMG", "NetCore", "OnlineSubsystem" });
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
+			"Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "GameLiftServerSDK", "UMG", "SlateCore",
+			 "Http", "Json", "JsonUtilities", "WebBrowserWidget", "Networking", "Sockets"
+		});
 	}
 }

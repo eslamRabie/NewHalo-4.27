@@ -10,6 +10,17 @@
 void UNotificationMessageWidget::SetMessage(FString Message)
 {
 	UTextBlock* TextBlock = WidgetTree->ConstructWidget<UTextBlock>();
+	if(!TextBlock) return;
 	TextBlock->SetText(FText::FromString(Message));
-	GetOwningLocalPlayer()->GetPlayerController(GetWorld())->GetWorldTimerManager().SetTimer(TimerHandle, this, &UUserWidget::RemoveFromParent, 1);
+	
+	auto OLP = GetOwningLocalPlayer();
+	if(OLP && GetWorld())
+	{
+		auto PC = OLP->GetPlayerController(GetWorld());
+		if(PC)
+		{
+			PC->GetWorldTimerManager().SetTimer(TimerHandle, this, &UUserWidget::RemoveFromParent, 1);
+		}	
+	}
+	
 }

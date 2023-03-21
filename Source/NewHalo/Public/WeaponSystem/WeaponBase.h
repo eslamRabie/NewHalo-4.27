@@ -25,12 +25,12 @@ enum class EWeaponType: uint8
 	RPG
 };
 
-UCLASS(Abstract)
+UCLASS()
 class NEWHALO_API AWeaponBase : public AActor, public IPickable, public IEquippable
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 	// Sets default values for this actor's properties
 	AWeaponBase();
 
@@ -38,7 +38,7 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -53,7 +53,7 @@ public:
 
 	UFUNCTION()
 	FVector GetAmmo();
-	
+
 	///////////////////////////////////
 	///
 	///
@@ -66,7 +66,7 @@ public:
 	virtual void Pick_Implementation(ANewHaloCharacter* Owner, int Amount) override;
 	virtual void Drop_Implementation(int Amount) override;
 
-	
+
 	/**
 	 * //End Pickable Interface
 	 */
@@ -74,7 +74,7 @@ public:
 	///////////////////////////////////
 	///
 	//////////////////////////////////////
-	
+
 	/**
 	 * Begin Equippable Interface  
 	 */
@@ -82,18 +82,16 @@ public:
 	virtual void Equip_Implementation(FName SocketName) override;
 
 	virtual void UnEquip_Implementation() override;
-	
+
 	/**
 	 * End Equippable Interface
 	 */
-	
-protected:
 
+protected:
 	UFUNCTION()
 	void ShootingCoolDown();
-	
 
-	
+
 public:
 	float GetRange() const;
 	float GetFireRate() const;
@@ -101,12 +99,12 @@ public:
 	bool IsIsAutomatic() const;
 	EWeaponType GetWeaponType() const;
 	ANewHaloCharacter* GetOwnerPlayer() const;
-	
+
 protected:
 	// Weapon Specs
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponSpecs)
 	float Range;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponSpecs)
 	float FireRate;
 
@@ -120,18 +118,18 @@ protected:
 	float WeaponDamage;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponSpecs)
-	EWeaponType WeaponType;	
-	
+	EWeaponType WeaponType;
+
 	// Core Components
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponCore)
 	USphereComponent* SceneComponent;
-	
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponCore)
 	USkeletalMeshComponent* WeaponSkeletalMeshComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponCore)
 	UParticleSystemComponent* ParticleSystemComponent;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponCore)
 	FName MuzzleSocketName;
 
@@ -139,18 +137,15 @@ protected:
 	FName MagazineSocketName;
 
 
-
-	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponCore)
 	ANewHaloCharacter* OwnerPlayer;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponCore)
 	TSubclassOf<class AWeaponMagazineBase> MagazineClass;
-	
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponCore)
 	AWeaponMagazineBase* WeaponMagazine;
-		
-	
+
 
 	// VFX/SFX 
 
@@ -164,10 +159,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WeaponFX)
 	UAnimMontage* ReloadAnimation;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponFX)
 	UParticleSystem* FiringEffect;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=WeaponFX)
 	USoundBase* EmptyMagazineSound;
 
@@ -185,7 +180,7 @@ public:
 protected:
 	UPROPERTY()
 	FName AttachedSocketName;
-	
+
 public:
 	FName GetAttachedSocketName() const;
 	void SetAttachedSocketName(FName InAttachedSocketName);
@@ -196,7 +191,6 @@ public:
 	void SetStopFiring(bool InbStopFiring);
 protected:
 	FTimerHandle FireTimerHandle;
-	
 };
 
 inline void AWeaponBase::SetStopFiring(bool InbStopFiring)

@@ -9,9 +9,10 @@
 // Sets default values
 AEquipment::AEquipment()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	
+	bReplicates = true;
+
 	WorldMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WorldStaticMeshComponent"));
 	WorldMeshComponent->SetupAttachment(RootComponent);
 
@@ -35,23 +36,22 @@ void AEquipment::Tick(float DeltaTime)
 
 void AEquipment::Use()
 {
-	
 }
 
 void AEquipment::StopUsing()
 {
-	
 }
 
 void AEquipment::Equip_Implementation(FName InSocketName)
 {
 	IEquippable::Equip_Implementation(InSocketName);
 	auto SocketMesh1P = Cast<USkeletalMeshComponent>(GetDefaultSubobjectByName("CharacterMesh1P"));
-	if(!SocketMesh1P)
+	if (!SocketMesh1P)
 	{
 		return;
 	}
-	EquippedMeshComponent->AttachToComponent(SocketMesh1P, FAttachmentTransformRules::SnapToTargetIncludingScale, InSocketName);
+	EquippedMeshComponent->AttachToComponent(SocketMesh1P, FAttachmentTransformRules::SnapToTargetIncludingScale,
+	                                         InSocketName);
 	EquippedMeshComponent->SetHiddenInGame(false, true);
 }
 
@@ -72,13 +72,13 @@ void AEquipment::UnEquip_Implementation()
 void AEquipment::Pick_Implementation(ANewHaloCharacter* PickingPlayer, int Amount)
 {
 	IPickable::Pick_Implementation(PickingPlayer, Amount);
-	if(!PickingPlayer)
+	if (!PickingPlayer)
 	{
 		return;
 	}
 	CurrentOwner = PickingPlayer;
 	const auto Inventory = Cast<UInventory>(PickingPlayer->GetComponentByClass(UInventory::StaticClass()));
-	if(!Inventory)
+	if (!Inventory)
 	{
 		return;
 	}
@@ -102,5 +102,3 @@ UTexture2D* AEquipment::GetIcon() const
 {
 	return Icon;
 }
-
-

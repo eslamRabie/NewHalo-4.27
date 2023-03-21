@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/TriggerSphere.h"
 #include "Engine/TriggerVolume.h"
+#include "Game/NHControlGameState.h"
 #include "Player/NHPlayerState.h"
 #include "ControlPoint.generated.h"
 
@@ -19,28 +20,24 @@ class NEWHALO_API AControlPoint : public ATriggerSphere
 	GENERATED_BODY()
 
 public:
-
 	AControlPoint();
 
 	virtual void Tick(float DeltaSeconds) override;
 
 protected:
-
 	virtual void BeginPlay() override;
-	
+
 	UFUNCTION()
 	void OnOverLapBegin(AActor* ThisActor, AActor* OtherActor);
 	UFUNCTION()
 	void OnOverLapEnd(AActor* ThisActor, AActor* OtherActor);
 
 
-	
 public:
 	float GetCurrentTime() const;
 	float GetMaxTime() const;
 private:
-	
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Replicated)
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess))
 	UStaticMeshComponent* ControlPointMesh;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=ControlPoint)
@@ -48,7 +45,7 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=ControlPoint)
 	float Radius;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=ControlPoint)
 	float MaxTime;
 
@@ -57,23 +54,25 @@ private:
 
 	UPROPERTY(Replicated)
 	ENHTeams ControlTeam;
-
 	
 	int32 BlueTeamCount;
 	int32 RedTeamCount;
 	float Rate;
-	
+
 	UPROPERTY()
 	bool bIsControlled;
-	
+
 	UPROPERTY()
 	TArray<ANewHaloCharacter*> ConnectedPlayersList;
 
 	TDelegate<void(ENHTeams)> OnWinDelegate;
-	
+	bool bIsGameOver;
+
 public:
 	float GetRate() const;
 	ENHTeams GetControlTeam() const;
+
+	void RegisterGameEndEvent(ANHControlGameState* GameState, FName CallbackName);
 
 protected:
 	void UpdateRate();

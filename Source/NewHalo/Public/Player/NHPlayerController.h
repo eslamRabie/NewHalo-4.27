@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project OnSettings.
 
 #pragma once
 
@@ -20,24 +20,24 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-	
-private:	
 
+private:
 public:
-	UFUNCTION(Client, Reliable)
-	void SetStartGameTimer(float Time);
 
-	UFUNCTION(Client, Reliable)
-	void StartGame();
 
 	UFUNCTION(Client, Reliable)
 	void EndGame(float Time, ENHTeams WinningTeam);
 
-protected:	
+	UFUNCTION(Client, Reliable)
+	void ReportToClient(const FString& Message);
+	UFUNCTION(Server, Reliable)
+	void TestInputRPC();
 
+	virtual void SetupInputComponent() override;
+
+protected:
 	UPROPERTY()
 	ANewHaloHUD* HUD;
-	
+
 private:
-	
 };

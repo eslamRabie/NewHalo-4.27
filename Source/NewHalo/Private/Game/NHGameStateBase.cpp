@@ -11,11 +11,23 @@ ENHTeams ANHGameStateBase::GetWinningTeam() const
 	return WinningTeam;
 }
 
-void ANHGameStateBase::SetWinningTeam(ENHTeams InWinningTeam)
+void ANHGameStateBase::SetWinningTeam_Implementation(ENHTeams InWinningTeam)
 {
-	if(HasAuthority() && GetNetMode() < ENetMode::NM_Client)
+	WinningTeam = InWinningTeam;
+}
+
+void ANHGameStateBase::NotifyKill_Implementation(ANHPlayerState* ShooterPS, ANHPlayerState* TargetPS)
+{
+	for(auto Player: PlayerArray)
 	{
-		this->WinningTeam = InWinningTeam;
+		if(Player)
+		{
+			auto NHPS = Cast<ANHPlayerState>(Player);
+			if(NHPS)
+			{
+				NHPS->NotifyKill(ShooterPS, TargetPS);
+			}
+		}
 	}
 }
 

@@ -8,35 +8,23 @@
 
 void UPlayerOverheadStatus::UpdateHealth(float Percent)
 {
+	if(!Health) return;
 	Health->Percent = Percent;
 }
 
 void UPlayerOverheadStatus::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
-	PS = GetOwningPlayerState<ANHPlayerState>();
-	if(!PS)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Cant get PS in OnInitialized UPlayerOverheadStatus in %s"), *GetName());
-		return;
-	}
-	PlayerName->SetText(FText::FromString(PS->GetPlayerName()));
-	auto PlayerTeam = PS->GetPlayerTeam();
-	if(PlayerTeam == ENHTeams::BlueTeam)
-	{
-		Health->SetFillColorAndOpacity(FLinearColor::Blue);
-	}
-	else if(PlayerTeam == ENHTeams::RedTeam)
-	{
-		Health->SetFillColorAndOpacity(FLinearColor::Red);
-	}
-	else
-	{
-		Health->SetFillColorAndOpacity(FLinearColor::Gray);
-	}
+	PlayerTeam = ENHTeams::None;
 }
 
 void UPlayerOverheadStatus::NativeTick(const FGeometry& MovieSceneBlends, float InDeltaTime)
 {
 	Super::NativeTick(MovieSceneBlends, InDeltaTime);
 }
+
+void UPlayerOverheadStatus::NativeConstruct()
+{
+	Super::NativeConstruct();
+}
+

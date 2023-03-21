@@ -24,5 +24,4 @@ private:
 	UVerticalBox* NotificationsArea;
 
 	FTimerHandle MessageTimer;
-	
 };

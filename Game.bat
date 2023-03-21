@@ -1,0 +1,1 @@
+"I:\UnrealEngine-release\UnrealEngine-release\Engine\Binaries\Win64\UE4Editor.exe" "I:\CloudGames\NewHalo 4.27 - 3\NewHalo.uproject" -game -log

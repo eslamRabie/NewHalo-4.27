@@ -1,9 +1,9 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project OnSettings.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/PlayerState.h"
+#include "Network/LobbyPlayerState.h"
 #include "NHPlayerState.generated.h"
 
 /**
@@ -14,38 +14,25 @@ class ANewHaloCharacter;
 class ANewHaloHUD;
 class ANewHaloGameMode;
 class ANHPlayerController;
-UENUM(BlueprintType, Blueprintable)
-enum class ENHTeams: uint8
-{
-	None,
-	BlueTeam,
-	RedTeam
-};
+
 UCLASS()
 class NEWHALO_API ANHPlayerState : public APlayerState
 {
 	GENERATED_BODY()
 
 public:
-
 	ANHPlayerState();
 
 	virtual void Tick(float DeltaSeconds) override;
-	
-protected:	
 
+protected:
 	virtual void BeginPlay() override;
-	
 public:
+	UFUNCTION(Server, Reliable)
+	void ReduceHealth(ANHPlayerState* ShooterPS, float Amount);
 
-	void ReduceHealth(ANHPlayerController* ShooterPC, float Amount);
-	
-	UFUNCTION()
-	void OnRep_Health();
+	virtual void Reset() override;
 
-	UFUNCTION(BlueprintCallable, Server, Reliable)
-	void SetPlayerTeam(ENHTeams Team);
-	
 
 	UPROPERTY()
 	ANHPlayerController* PC;
@@ -56,19 +43,32 @@ public:
 	UPROPERTY()
 	ANewHaloHUD* HUD;
 
-private:
-	void TryGetHUD();
+	UPROPERTY()
+	FString PlayerSessionId;
+
+	UPROPERTY()
+	FString MatchmakingPlayerId;
+
+	UPROPERTY()
+	FString Team;
+
+	UFUNCTION(BlueprintCallable)
+	void SetPlayerTeam(ENHTeams InTeam);
+
+	UFUNCTION(BlueprintCallable)
+	ENHTeams GetPlayerTeam() const;
 	
-protected:	
-
-
+	
+protected:
+	UPROPERTY(Replicated)
+	ENHTeams PlayerTeam;
 private:
-	UPROPERTY(ReplicatedUsing=OnRep_Health)
+	UPROPERTY(Replicated)
 	float Health;
 
 	UPROPERTY()
 	float MaxHealth;
-	
+
 	UPROPERTY(Replicated)
 	float Kills;
 
@@ -76,10 +76,10 @@ private:
 	float Deaths;
 
 	UPROPERTY(Replicated)
-	ENHTeams PlayerTeam;
+	bool bIsWaitingKill;
 
 	FTimerHandle TimerHandle;
-	
+
 public:
 	UFUNCTION(BlueprintCallable)
 	float GetHealth() const;
@@ -89,19 +89,16 @@ public:
 	float GetKills() const;
 	UFUNCTION(BlueprintCallable)
 	float GetDeaths() const;
-	UFUNCTION(BlueprintCallable)
-	ENHTeams GetPlayerTeam() const;
+	UFUNCTION()
+	float GetHealthPercent();
+	UFUNCTION(Server, Reliable)
+	void GetPC();
 
-	UFUNCTION(BlueprintCallable, NetMulticast, Reliable)
+
+	UFUNCTION(BlueprintCallable, Client, Reliable)
 	void NotifyKill(ANHPlayerState* ShooterPS, ANHPlayerState* TargetPS);
 
 	UFUNCTION(BlueprintCallable, Server, Reliable)
 	void AddKills();
 	
-	void RegisterLocalCharacter(ANewHaloCharacter* PlayerCharacter);
-
-	TDelegate<void(float)> HealthUpdate;
-	
 };
-
-

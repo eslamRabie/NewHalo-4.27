@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "4.27",
+	"EngineAssociation": "{089A9288-4165-6DE0-BDBC-F49A80509A03}",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -10,35 +10,18 @@
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
 				"Engine",
-				"UMG",
-				"OnlineSubsystem"
+				"UMG"
 			]
 		}
 	],
 	"Plugins": [
 		{
-			"Name": "OnlineSubsystemGooglePlay",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Android"
-			]
-		},
-		{
-			"Name": "OnlineSubsystemIOS",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"IOS",
-				"TVOS"
-			]
-		},
-		{
-			"Name": "OnlineFramework",
+			"Name": "GameLiftServerSDK",
 			"Enabled": true
 		},
 		{
-			"Name": "PlayFab",
-			"Enabled": true,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/217fdf581b784571af03d3fb6580368f"
+			"Name": "WebBrowserWidget",
+			"Enabled": true
 		}
 	]
 }

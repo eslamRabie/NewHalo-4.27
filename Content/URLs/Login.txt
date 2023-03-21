@@ -1,0 +1,1 @@
+https://nh-test-server.auth.eu-west-1.amazoncognito.com/login?client_id=1r39dg8r0j7sisopltq39ollc8&response_type=code&scope=aws.cognito.signin.user.admin+email+nh.api.server/access+openid+phone+profile&redirect_uri=https://sq44qr8qch.execute-api.eu-west-1.amazonaws.com/Test/getsigninresult

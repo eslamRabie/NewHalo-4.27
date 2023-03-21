@@ -15,25 +15,5 @@ UCLASS()
 class NEWHALO_API ANHControlGameMode : public ANewHaloGameMode
 {
 	GENERATED_BODY()
-
-public:
-	ANHControlGameMode();
-
-	virtual void Tick(float DeltaSeconds) override;
-
-protected:
-	virtual void BeginPlay() override;
-
-private:
-	void GetControlPoint();
-	void UpdateControlPointStats();
 	
-private:
-	UPROPERTY()
-	AControlPoint* GameControlPoint;
-
-	FTimerHandle ControlPointTimerHandle;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta=(AllowPrivateAccess), Category=Control)
-	float ControlPointUpdateRateInSeconds;
 };
